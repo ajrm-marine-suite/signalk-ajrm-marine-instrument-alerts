@@ -1,0 +1,46 @@
+{
+  "name": "signalk-ajrm-marine-instrument-alerts",
+  "version": "0.5.0",
+  "description": "Instrument threshold and trend announcements for AJRM Marine Suite.",
+  "main": "plugin/index.js",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\" && node --check plugin/index.js && node --check public/app.js"
+  },
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-webapp",
+    "signalk-category-instruments",
+    "signalk-category-notifications",
+    "monitoring",
+    "tts",
+    "signal-k",
+    "signalk",
+    "ajrm-marine-suite",
+    "marine",
+    "navigation"
+  ],
+  "author": "Anthony McDonald, with assistance from William McAusland",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts/issues"
+  },
+  "homepage": "https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "plugin",
+    "public",
+    "README.md",
+    "LICENSE"
+  ],
+  "signalk-plugin-enabled-by-default": false,
+  "signalk": {
+    "displayName": "AJRM Marine Instrument Alerts",
+    "appIcon": "./icon.svg"
+  }
+}
