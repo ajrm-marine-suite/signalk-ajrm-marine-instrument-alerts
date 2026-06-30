@@ -51,9 +51,8 @@ const LEVEL_SCHEMA = {
 
 function levelSchema(title) {
   return {
-    ...LEVEL_SCHEMA,
+    ...JSON.parse(JSON.stringify(LEVEL_SCHEMA)),
     title,
-    properties: { ...LEVEL_SCHEMA.properties },
   };
 }
 
