@@ -49,6 +49,14 @@ const LEVEL_SCHEMA = {
   },
 };
 
+function levelSchema(title) {
+  return {
+    ...LEVEL_SCHEMA,
+    title,
+    properties: { ...LEVEL_SCHEMA.properties },
+  };
+}
+
 const DEFAULT_MONITORS = [
   {
     id: "depth-below-keel",
@@ -168,9 +176,9 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
               type: "object",
               title: "Severity rules",
               properties: {
-                information: { ...LEVEL_SCHEMA, title: "Information" },
-                warning: { ...LEVEL_SCHEMA, title: "Warning" },
-                danger: { ...LEVEL_SCHEMA, title: "Danger" },
+                information: levelSchema("Information"),
+                warning: levelSchema("Warning"),
+                danger: levelSchema("Danger"),
               },
             },
           },

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3
+
+- Clone repeated level schema fragments so the Signal K plugin CI schema
+  validator sees a JSON-clean plugin configuration schema.
+
 ## 0.5.2
 
 - Add Signal K AppStore relationship metadata recommending AJRM Marine Audio
