@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-instrument-alerts",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Instrument threshold and trend announcements for AJRM Marine Suite.",
   "main": "plugin/index.js",
   "scripts": {
@@ -20,7 +20,7 @@
     "navigation"
   ],
   "author": "Anthony McDonald, with assistance from William McAusland",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git"

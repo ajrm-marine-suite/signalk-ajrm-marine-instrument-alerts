@@ -47,7 +47,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.5.1 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.5.5 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
@@ -69,3 +69,9 @@ AJRM Marine Instrument Alerts is authored and maintained by Anthony McDonald, wi
 Instrument threshold and trend announcements for AJRM Marine Suite.
 
 Development assistance: OpenAI Codex helped with code generation, refactoring, and automated testing during the beta development cycle.
+## License and commercial use
+
+This software is licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). You may use, study, share, and modify it under that licence. If you modify it and make it available to users over a network, the corresponding source code must also be made available under the AGPL.
+
+Commercial licensing is available by arrangement for organisations that want different terms.
+
