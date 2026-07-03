@@ -77,3 +77,99 @@ test("subscribed values publish Audible Instruments notifications", () => {
     },
   );
 });
+
+test("status advertises anchoring depth callout capability", () => {
+  let status = null;
+  const app = {
+    subscriptionmanager: {
+      subscribe(_subscription, unsubscribes) {
+        unsubscribes.push(() => {});
+      },
+    },
+    getSelfPath() {
+      return null;
+    },
+    getDataDirPath() {
+      return null;
+    },
+    handleMessage() {},
+    setPluginStatus() {},
+    error() {},
+  };
+  const plugin = ajrmMarineInstrumentAlerts(app);
+  plugin.start({});
+  plugin.registerWithRouter({
+    get(path, handler) {
+      if (path === "/status") handler({}, { json(value) { status = value; } });
+    },
+    put() {},
+    post() {},
+  });
+  assert.equal(status.depthCallout.supported, true);
+  assert.equal(status.depthCallout.available, true);
+  assert.equal(status.depthCallout.path, "environment.depth.belowKeel");
+  assert.equal(status.depthCallout.audio, true);
+  assert.equal(status.depthCallout.active, false);
+});
+
+test("depth callout announces sparse anchoring depth changes when enabled", () => {
+  let deltaHandler;
+  const messages = [];
+  const app = {
+    subscriptionmanager: {
+      subscribe(subscription, unsubscribes, _onError, onDelta) {
+        assert.ok(subscription.subscribe.some((item) => item.path === "environment.depth.belowKeel"));
+        deltaHandler = onDelta;
+        unsubscribes.push(() => {});
+      },
+    },
+    getSelfPath() {
+      return null;
+    },
+    getDataDirPath() {
+      return null;
+    },
+    handleMessage(_pluginId, message) {
+      messages.push(message);
+    },
+    setPluginStatus() {},
+    error() {},
+  };
+  const plugin = ajrmMarineInstrumentAlerts(app);
+  plugin.start({
+    monitors: [],
+    depthCallout: {
+      enabled: true,
+      path: "environment.depth.belowKeel",
+      sayUnits: true,
+      minimumIntervalSeconds: 1,
+    },
+  });
+
+  deltaHandler({
+    updates: [
+      {
+        timestamp: "2026-07-03T12:00:00.000Z",
+        values: [{ path: "environment.depth.belowKeel", value: 6.2 }],
+      },
+      {
+        timestamp: "2026-07-03T12:00:01.500Z",
+        values: [{ path: "environment.depth.belowKeel", value: 5.1 }],
+      },
+      {
+        timestamp: "2026-07-03T12:00:03.000Z",
+        values: [{ path: "environment.depth.belowKeel", value: 2.4 }],
+      },
+    ],
+  });
+
+  const callouts = messages
+    .map((message) => message.updates[0].values[0])
+    .filter((value) => value.path === "notifications.environment.depth.callout");
+  assert.equal(callouts.length, 3);
+  assert.equal(callouts[0].value.message, "Depth 6 meters.");
+  assert.equal(callouts[1].value.message, "Depth 5 meters.");
+  assert.equal(callouts[2].value.message, "Depth 2.4 meters.");
+  assert.equal(callouts[2].value.data.category, "instrument-depth-callout");
+  assert.equal(callouts[2].value.data.announcement.shouldAnnounce, true);
+});

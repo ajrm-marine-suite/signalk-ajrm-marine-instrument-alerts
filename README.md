@@ -2,6 +2,11 @@
 
 ## Version 1 baseline
 
+`v0.5.6` adds the first server-side anchoring depth callout capability. It is
+off by default and reads the configured depth path only when enabled, announcing
+sparse whole-metre callouts in deeper water and tenths near the anchoring band.
+The status endpoint advertises the capability for BITE and future UI controls.
+
 `v0.5.0` promotes the current configurable instrument and rate-of-change
 notification provider as the working baseline. It remains provider-owned policy
 published through standard Signal K notifications and does not intentionally
@@ -47,7 +52,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.5.5 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.5.6 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
@@ -74,4 +79,3 @@ Development assistance: OpenAI Codex helped with code generation, refactoring, a
 This software is licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later). You may use, study, share, and modify it under that licence. If you modify it and make it available to users over a network, the corresponding source code must also be made available under the AGPL.
 
 Commercial licensing is available by arrangement for organisations that want different terms.
-

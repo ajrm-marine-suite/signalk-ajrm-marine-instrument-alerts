@@ -95,12 +95,31 @@ const DEFAULT_MONITORS = [
   },
 ];
 
+const DEFAULT_DEPTH_CALLOUT = {
+  supported: true,
+  enabled: false,
+  path: "environment.depth.belowKeel",
+  sourcePath: "environment.depth.belowKeel",
+  unit: "meters",
+  sayUnits: false,
+  coarseStepMeters: 1,
+  fineStepMeters: 0.1,
+  fineBelowMeters: 3,
+  hysteresisMeters: 0.05,
+  minimumIntervalSeconds: 5,
+  repeatSameBucketSeconds: 30,
+  targetMinimumMeters: 2,
+  targetMaximumMeters: 3,
+  audio: true,
+};
+
 module.exports = function ajrmMarineInstrumentAlerts(app) {
   const plugin = {};
   let options = normalizeOptions({});
   let states = new Map();
   let unsubscribes = [];
   let recentEvents = [];
+  let depthCalloutState = createDepthCalloutState();
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine Instrument Alerts";
@@ -183,6 +202,22 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
           },
         },
       },
+      depthCallout: {
+        type: "object",
+        title: "Anchoring depth callout",
+        description:
+          "Optional sparse depth readout for anchoring. It announces whole metre changes in deeper water and tenths near the anchoring band.",
+        properties: {
+          enabled: { type: "boolean", title: "Enable depth callouts", default: false },
+          path: { type: "string", title: "Depth Signal K path", default: DEFAULT_DEPTH_CALLOUT.path },
+          sayUnits: { type: "boolean", title: "Say meters in each callout", default: false },
+          fineBelowMeters: { type: "number", title: "Use tenths below", default: 3, minimum: 0 },
+          minimumIntervalSeconds: { type: "integer", title: "Minimum time between callouts", default: 5, minimum: 1 },
+          repeatSameBucketSeconds: { type: "integer", title: "Repeat unchanged depth after", default: 30, minimum: 5 },
+          targetMinimumMeters: { type: "number", title: "Target minimum depth", default: 2, minimum: 0 },
+          targetMaximumMeters: { type: "number", title: "Target maximum depth", default: 3, minimum: 0 },
+        },
+      },
     },
   };
 
@@ -229,6 +264,22 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         res.status(400).json({ ok: false, error: error.message });
       }
     });
+
+    router.post("/depth-callout/drop", (_req, res) => {
+      const depth = depthCalloutState.lastDepthMeters;
+      if (!Number.isFinite(depth)) {
+        res.status(409).json({ ok: false, error: "No recent depth is available." });
+        return;
+      }
+      publishDepthCallout({
+        depthMeters: depth,
+        timestamp: Date.now(),
+        message: `Anchor dropped in ${formatDepth(depth, true)}.`,
+        forced: true,
+        kind: "anchor-dropped",
+      });
+      res.json({ ok: true, depthMeters: depth });
+    });
   };
 
   return plugin;
@@ -239,6 +290,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
     return {
       enabled: value.enabled !== false,
       monitors: uniqueMonitorIds(normalized),
+      depthCallout: normalizeDepthCallout(value.depthCallout),
     };
   }
 
@@ -289,6 +341,38 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
     };
   }
 
+  function normalizeDepthCallout(value = {}) {
+    const pathValue = String(value.path || value.sourcePath || DEFAULT_DEPTH_CALLOUT.path).trim();
+    return {
+      supported: true,
+      available: true,
+      enabled: value.enabled === true,
+      path: pathValue || DEFAULT_DEPTH_CALLOUT.path,
+      sourcePath: pathValue || DEFAULT_DEPTH_CALLOUT.path,
+      unit: "meters",
+      sayUnits: value.sayUnits === true,
+      coarseStepMeters: clampNumber(value.coarseStepMeters, DEFAULT_DEPTH_CALLOUT.coarseStepMeters, 0.1, 10),
+      fineStepMeters: clampNumber(value.fineStepMeters, DEFAULT_DEPTH_CALLOUT.fineStepMeters, 0.01, 2),
+      fineBelowMeters: clampNumber(value.fineBelowMeters, DEFAULT_DEPTH_CALLOUT.fineBelowMeters, 0, 100),
+      hysteresisMeters: clampNumber(value.hysteresisMeters, DEFAULT_DEPTH_CALLOUT.hysteresisMeters, 0, 10),
+      minimumIntervalSeconds: clampInteger(
+        value.minimumIntervalSeconds,
+        DEFAULT_DEPTH_CALLOUT.minimumIntervalSeconds,
+        1,
+        3600,
+      ),
+      repeatSameBucketSeconds: clampInteger(
+        value.repeatSameBucketSeconds,
+        DEFAULT_DEPTH_CALLOUT.repeatSameBucketSeconds,
+        5,
+        86400,
+      ),
+      targetMinimumMeters: clampNumber(value.targetMinimumMeters, DEFAULT_DEPTH_CALLOUT.targetMinimumMeters, 0, 200),
+      targetMaximumMeters: clampNumber(value.targetMaximumMeters, DEFAULT_DEPTH_CALLOUT.targetMaximumMeters, 0, 200),
+      audio: value.audio !== false,
+    };
+  }
+
   function uniqueMonitorIds(monitors) {
     const used = new Set();
     return monitors.map((monitor, index) => {
@@ -302,12 +386,16 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
 
   function subscribeToMonitors() {
     if (!options.enabled || !app.subscriptionmanager?.subscribe) return;
-    const paths = [...new Set(options.monitors.filter((item) => item.enabled).map((item) => item.path))];
-    if (paths.length === 0) return;
+    const paths = [
+      ...options.monitors.filter((item) => item.enabled).map((item) => item.path),
+      ...(options.depthCallout.enabled ? [options.depthCallout.path] : []),
+    ];
+    const uniquePaths = [...new Set(paths.filter(Boolean))];
+    if (uniquePaths.length === 0) return;
     app.subscriptionmanager.subscribe(
       {
         context: "vessels.self",
-        subscribe: paths.map((monitorPath) => ({
+        subscribe: uniquePaths.map((monitorPath) => ({
           path: monitorPath,
           policy: "instant",
           format: "delta",
@@ -329,6 +417,9 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
             evaluateValue(monitor, value.value, timestamp);
           }
         }
+        if (options.depthCallout.enabled && options.depthCallout.path === value.path) {
+          evaluateDepthCallout(value.value, timestamp);
+        }
       }
     }
   }
@@ -340,6 +431,10 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       if (!monitor.enabled) continue;
       const value = app.getSelfPath(monitor.path);
       if (value != null) evaluateValue(monitor, value, timestamp);
+    }
+    if (options.depthCallout.enabled) {
+      const value = app.getSelfPath(options.depthCallout.path);
+      if (value != null) evaluateDepthCallout(value, timestamp);
     }
   }
 
@@ -405,6 +500,109 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
     });
   }
 
+  function evaluateDepthCallout(rawValue, timestamp) {
+    const depthMeters = Number(rawValue?.value ?? rawValue);
+    if (!Number.isFinite(depthMeters) || depthMeters < 0) return;
+    const now = Number.isFinite(timestamp) ? timestamp : Date.now();
+    const bucket = depthCalloutBucket(depthMeters, options.depthCallout);
+    const previous = depthCalloutState;
+    depthCalloutState = {
+      ...previous,
+      lastDepthMeters: depthMeters,
+      lastUpdatedAt: new Date(now).toISOString(),
+      currentBucket: bucket,
+    };
+    const step = depthCalloutStep(depthMeters, options.depthCallout);
+    const depthChangedEnough =
+      previous.lastAnnouncedBucket == null ||
+      Math.abs(bucket - previous.lastAnnouncedBucket) >= step - options.depthCallout.hysteresisMeters;
+    const intervalElapsed =
+      !previous.lastAnnouncedAt ||
+      now - previous.lastAnnouncedAt >= options.depthCallout.minimumIntervalSeconds * 1000;
+    const repeatElapsed =
+      previous.lastAnnouncedBucket === bucket &&
+      previous.lastAnnouncedAt &&
+      now - previous.lastAnnouncedAt >= options.depthCallout.repeatSameBucketSeconds * 1000;
+    if ((!depthChangedEnough || !intervalElapsed) && !repeatElapsed) return;
+    const message = `Depth ${formatDepth(depthMeters, options.depthCallout.sayUnits)}.`;
+    publishDepthCallout({
+      depthMeters,
+      timestamp: now,
+      message,
+      forced: false,
+      kind: "depth-callout",
+    });
+    depthCalloutState = {
+      ...depthCalloutState,
+      lastAnnouncedBucket: bucket,
+      lastAnnouncedAt: now,
+      lastAnnouncement: message,
+    };
+  }
+
+  function publishDepthCallout({ depthMeters, timestamp, message, forced, kind }) {
+    const event = {
+      id: `${kind}-${new Date(timestamp).toISOString()}`,
+      ts: new Date(timestamp).toISOString(),
+      level: "information",
+      message,
+      value: round(depthMeters, 1),
+      unit: options.depthCallout.unit,
+      ratePerMinute: null,
+    };
+    recentEvents = [event, ...recentEvents].slice(0, 50);
+    const monitor = {
+      id: "anchoring-depth-callout",
+      label: "Depth",
+      path: options.depthCallout.path,
+    };
+    const ajrmMarineNotifications = activeEnvelope(monitor, event);
+    app.handleMessage(PLUGIN_ID, {
+      context: "vessels.self",
+      updates: [
+        {
+          values: [
+            {
+              path: "notifications.environment.depth.callout",
+              value: {
+                state: "alert",
+                method: ["sound"],
+                message,
+                data: {
+                  category: "instrument-depth-callout",
+                  sourcePath: options.depthCallout.path,
+                  depthMeters,
+                  forced,
+                  ajrmMarineNotifications,
+                  announcement: {
+                    id: event.id,
+                    ts: event.ts,
+                    shouldAnnounce: true,
+                    localPlayback: true,
+                    streamOutput: true,
+                  },
+                  alertEvent: {
+                    id: event.id,
+                    ts: event.ts,
+                    vesselName: "Depth",
+                    displayName: "Depth",
+                    state: "alert",
+                    category: "instrument-depth-callout",
+                    message,
+                    methods: ["sound"],
+                    shouldAnnounce: true,
+                    uiSeverity: "information",
+                    uiLabel: "Depth",
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    });
+  }
+
   function clearNotification(monitorId) {
     app.handleMessage(PLUGIN_ID, {
       context: "vessels.self",
@@ -432,6 +630,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
 
   function resetStates() {
     states = new Map(options.monitors.map((monitor) => [monitor.id, createMonitorState()]));
+    depthCalloutState = createDepthCalloutState();
     recentEvents = [];
   }
 
@@ -453,6 +652,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       version: packageInfo.version,
       enabled: options.enabled,
       monitors: options.monitors,
+      depthCallout: options.depthCallout,
     };
   }
 
@@ -467,7 +667,19 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         ...monitor,
         state: publicState(states.get(monitor.id) || createMonitorState()),
       })),
+      depthCallout: publicDepthCalloutStatus(),
       recentEvents,
+    };
+  }
+
+  function publicDepthCalloutStatus() {
+    return {
+      ...options.depthCallout,
+      available: true,
+      active: options.enabled && options.depthCallout.enabled,
+      lastDepthMeters: depthCalloutState.lastDepthMeters,
+      lastUpdatedAt: depthCalloutState.lastUpdatedAt,
+      lastAnnouncement: depthCalloutState.lastAnnouncement,
     };
   }
 
@@ -510,6 +722,37 @@ function standardNotificationPath(monitor) {
     return `notifications.${sourcePath}`;
   }
   return `${NOTIFICATION_ROOT}.${monitor?.id || "instrument"}`;
+}
+
+function createDepthCalloutState() {
+  return {
+    lastDepthMeters: null,
+    lastUpdatedAt: null,
+    currentBucket: null,
+    lastAnnouncedBucket: null,
+    lastAnnouncedAt: null,
+    lastAnnouncement: null,
+  };
+}
+
+function depthCalloutStep(depthMeters, options) {
+  return depthMeters <= options.fineBelowMeters ? options.fineStepMeters : options.coarseStepMeters;
+}
+
+function depthCalloutBucket(depthMeters, options) {
+  const step = depthCalloutStep(depthMeters, options);
+  return round(Math.round(depthMeters / step) * step, step < 1 ? 1 : 0);
+}
+
+function formatDepth(depthMeters, sayUnits) {
+  const decimals = depthMeters < 3 ? 1 : 0;
+  const value = round(depthMeters, decimals).toFixed(decimals);
+  return sayUnits ? `${value} meters` : value;
+}
+
+function round(value, decimals) {
+  const factor = 10 ** decimals;
+  return Math.round(Number(value) * factor) / factor;
 }
 
 function optionalNumber(value) {
