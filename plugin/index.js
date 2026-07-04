@@ -230,6 +230,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
     resetStates();
     subscribeToMonitors();
     seedCurrentValues();
+    publishStatusProjection();
     app.setPluginStatus(`Started v${packageInfo.version}; ${enabledMonitorCount()} monitor(s)`);
   };
 
@@ -257,6 +258,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         resetStates();
         subscribeToMonitors();
         seedCurrentValues();
+        publishStatusProjection();
         app.setPluginStatus(`Started v${packageInfo.version}; ${enabledMonitorCount()} monitor(s)`);
         res.json(settingsResponse());
       } catch (error) {
@@ -670,6 +672,23 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       depthCallout: publicDepthCalloutStatus(),
       recentEvents,
     };
+  }
+
+  function publishStatusProjection() {
+    if (typeof app.handleMessage !== "function") return;
+    app.handleMessage(PLUGIN_ID, {
+      context: "vessels.self",
+      updates: [
+        {
+          values: [
+            {
+              path: "plugins.ajrmMarineInstrumentAlerts",
+              value: statusResponse(),
+            },
+          ],
+        },
+      ],
+    });
   }
 
   function publicDepthCalloutStatus() {

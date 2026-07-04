@@ -2,6 +2,10 @@
 
 ## Version 1 baseline
 
+`v0.5.7` publishes Instrument Alerts status under
+`vessels.self.plugins.ajrmMarineInstrumentAlerts` so Console BITE, Capture, and
+Snapshot can verify depth-callout capability from captured Signal K state.
+
 `v0.5.6` adds the first server-side anchoring depth callout capability. It is
 off by default and reads the configured depth path only when enabled, announcing
 sparse whole-metre callouts in deeper water and tenths near the anchoring band.
@@ -52,7 +56,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.5.6 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.5.7 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
