@@ -14,7 +14,8 @@ const {
 } = require("./lib/notifications-plus-envelope");
 
 const PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";
-const SETTINGS_FILE = "audible-instruments-settings.json";
+const SETTINGS_FILE = "ajrm-marine-instrument-alerts-settings.json";
+const PREVIOUS_SETTINGS_FILE = "audible-instruments-settings.json";
 const NOTIFICATION_ROOT = "notifications.ajrmMarineInstrumentAlerts";
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const LEVEL_SCHEMA = {
@@ -482,7 +483,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
                 method: ["visual", "sound"],
                 message: event.message,
                 data: {
-                  category: "audible-instrument",
+                  category: "instrument-alert",
                   monitorId: monitor.id,
                   sourcePath: monitor.path,
                   level: event.level,
@@ -503,7 +504,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
                     vesselName: monitor.label,
                     displayName: monitor.label,
                     state: notificationState,
-                    category: "audible-instrument",
+                    category: "instrument-alert",
                     message: event.message,
                     methods: ["visual", "sound"],
                     shouldAnnounce: true,
@@ -769,6 +770,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   function loadRuntimeSettings() {
     try {
       const filePath = settingsFilePath();
+      migratePreviousSettingsFile();
       if (!filePath || !fs.existsSync(filePath)) return {};
       return JSON.parse(fs.readFileSync(filePath, "utf8"));
     } catch (error) {
@@ -787,6 +789,16 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   function settingsFilePath() {
     if (typeof app.getDataDirPath !== "function") return null;
     return path.join(app.getDataDirPath(), SETTINGS_FILE);
+  }
+
+  function migratePreviousSettingsFile() {
+    if (typeof app.getDataDirPath !== "function") return;
+    const directory = app.getDataDirPath();
+    const currentPath = path.join(directory, SETTINGS_FILE);
+    const previousPath = path.join(directory, PREVIOUS_SETTINGS_FILE);
+    if (fs.existsSync(currentPath) || !fs.existsSync(previousPath)) return;
+    fs.mkdirSync(path.dirname(currentPath), { recursive: true });
+    fs.copyFileSync(previousPath, currentPath);
   }
 };
 

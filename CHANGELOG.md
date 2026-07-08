@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.13
+
+- Rename Instrument Alerts notification provider/category/settings identifiers
+  from legacy Audible Instruments wording to AJRM Marine Instrument Alerts.
+- Add a bounded migration from the previous settings filename to the new AJRM
+  settings filename.
+
 ## 0.5.12
 
 - Keep Anchor dropped repeatable for re-anchoring, changing the button to

@@ -32,7 +32,7 @@ Each monitored Signal K path can have independent **Information**, **Warning**, 
 - Repeat at a different interval for each severity.
 - Apply value and rate hysteresis to avoid chatter near a boundary.
 
-The Signal K plugin configuration supplies startup defaults. The AJRM Marine Instrument Alerts web app can add, remove, enable, and tune monitors while the plugin is running. Web changes are persisted in `audible-instruments-settings.json` in the plugin data directory and take precedence over startup defaults.
+The Signal K plugin configuration supplies startup defaults. The AJRM Marine Instrument Alerts web app can add, remove, enable, and tune monitors while the plugin is running. Web changes are persisted in `ajrm-marine-instrument-alerts-settings.json` in the plugin data directory and take precedence over startup defaults.
 
 For compatibility with other Signal K applications, each active monitor publishes the standard notification fields `state`, `method`, and `message`. The notification path mirrors the monitored source path where possible, for example:
 

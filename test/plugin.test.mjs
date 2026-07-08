@@ -1,8 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import ajrmMarineInstrumentAlerts from "../plugin/index.js";
 
-test("subscribed values publish Audible Instruments notifications", () => {
+test("subscribed values publish AJRM Marine Instrument Alerts notifications", () => {
   let deltaHandler;
   const messages = [];
   const app = {
@@ -71,12 +74,64 @@ test("subscribed values publish Audible Instruments notifications", () => {
     },
     {
       lifecycle: "active",
-      subjectKey: "audible-instruments:depth",
+      subjectKey: "ajrm-marine-instrument-alerts:depth",
       historyPolicy: "on-resolve",
       priority: 850,
       title: "Depth below keel",
     },
   );
+});
+
+test("migrates previous Audible Instruments settings file to AJRM settings", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-instrument-alerts-"));
+  try {
+    const previousPath = path.join(dataDir, "audible-instruments-settings.json");
+    const currentPath = path.join(dataDir, "ajrm-marine-instrument-alerts-settings.json");
+    fs.writeFileSync(previousPath, JSON.stringify({
+      enabled: true,
+      monitors: [
+        {
+          id: "depth",
+          label: "Depth below keel",
+          path: "environment.depth.belowKeel",
+          unit: "metres",
+        },
+      ],
+    }));
+
+    let settings = null;
+    const app = {
+      subscriptionmanager: {
+        subscribe(_subscription, unsubscribes) {
+          unsubscribes.push(() => {});
+        },
+      },
+      getSelfPath() {
+        return null;
+      },
+      getDataDirPath() {
+        return dataDir;
+      },
+      handleMessage() {},
+      setPluginStatus() {},
+      error() {},
+    };
+    const plugin = ajrmMarineInstrumentAlerts(app);
+    plugin.start({});
+    plugin.registerWithRouter({
+      get(route, handler) {
+        if (route === "/settings") handler({}, { json(value) { settings = value; } });
+      },
+      put() {},
+      post() {},
+    });
+
+    assert.equal(fs.existsSync(currentPath), true);
+    assert.equal(settings.enabled, true);
+    assert.equal(settings.monitors[0].id, "depth");
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
 });
 
 test("status advertises anchoring depth callout capability", () => {

@@ -2,7 +2,7 @@
 
 const { randomUUID } = require("node:crypto");
 
-const PROVIDER = "audible-instruments";
+const PROVIDER = "ajrm-marine-instrument-alerts";
 let providerSessionId = randomUUID();
 let sourceSequence = 0;
 let monitorCorrelations = new Map();
@@ -14,7 +14,7 @@ function activeEnvelope(monitor, event) {
       : event.level === "warning"
         ? "warning"
         : "information";
-  const subjectKey = `audible-instruments:${monitor.id}`;
+  const subjectKey = `${PROVIDER}:${monitor.id}`;
   return {
     schemaVersion: 1,
     provider: PROVIDER,
@@ -49,7 +49,7 @@ function activeEnvelope(monitor, event) {
             ? "Warning"
             : "Information",
       message: event.message,
-      category: "audible-instrument",
+      category: "instrument-alert",
       facts: [],
     },
     actions: [],
@@ -64,7 +64,7 @@ function activeEnvelope(monitor, event) {
 }
 
 function resolvedEnvelope(monitorId, now = Date.now()) {
-  const subjectKey = `audible-instruments:${monitorId}`;
+  const subjectKey = `${PROVIDER}:${monitorId}`;
   const result = {
     schemaVersion: 1,
     provider: PROVIDER,
@@ -72,7 +72,7 @@ function resolvedEnvelope(monitorId, now = Date.now()) {
     sourceSequence: ++sourceSequence,
     correlationId: correlationFor(subjectKey),
     subjectKey,
-    eventId: `audible-instruments:${monitorId}:resolved:${now}`,
+    eventId: `${PROVIDER}:${monitorId}:resolved:${now}`,
     revision: now,
     lifecycle: "resolved",
     timestamp: new Date(now).toISOString(),
