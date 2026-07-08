@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-instrument-alerts",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "Instrument threshold and trend announcements for AJRM Marine Suite.",
   "main": "plugin/index.js",
   "scripts": {
@@ -38,7 +38,7 @@
     "README.md",
     "LICENSE"
   ],
-  "signalk-plugin-enabled-by-default": false,
+  "signalk-plugin-enabled-by-default": true,
   "signalk": {
     "displayName": "AJRM Marine Instrument Alerts",
     "appIcon": "./icon.svg",

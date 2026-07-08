@@ -132,7 +132,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       enabled: {
         type: "boolean",
         title: "Enable AJRM Marine Instrument Alerts",
-        default: true,
+        default: false,
       },
       monitors: {
         type: "array",
@@ -290,7 +290,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
     const monitors = Array.isArray(value.monitors) ? value.monitors : DEFAULT_MONITORS;
     const normalized = monitors.map(normalizeMonitor).filter((monitor) => monitor.path);
     return {
-      enabled: value.enabled !== false,
+      enabled: value.enabled === true,
       monitors: uniqueMonitorIds(normalized),
       depthCallout: normalizeDepthCallout(value.depthCallout),
     };

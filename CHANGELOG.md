@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.8
+
+- Start the plugin by default so Console BITE can see the Instrument Alerts
+  status projection and anchoring depth-callout capability on fresh installs.
+- Keep the alert engine and depth callouts internally disabled by default, so
+  auto-starting the plugin does not create unexpected spoken alerts.
+
 ## 0.5.3
 
 - Clone repeated level schema fragments so the Signal K plugin CI schema

@@ -26,6 +26,7 @@ test("subscribed values publish Audible Instruments notifications", () => {
   };
   const plugin = ajrmMarineInstrumentAlerts(app);
   plugin.start({
+    enabled: true,
     monitors: [
       {
         id: "depth",
@@ -113,9 +114,11 @@ test("status advertises anchoring depth callout capability", () => {
   assert.equal(status.depthCallout.path, "environment.depth.belowKeel");
   assert.equal(status.depthCallout.audio, true);
   assert.equal(status.depthCallout.active, false);
+  assert.equal(status.enabled, false);
   const projection = messages.find((message) =>
     message.updates?.[0]?.values?.[0]?.path === "plugins.ajrmMarineInstrumentAlerts"
   ).updates[0].values[0];
+  assert.equal(projection.value.enabled, false);
   assert.equal(projection.value.depthCallout.supported, true);
   assert.equal(projection.value.depthCallout.audio, true);
 });
@@ -145,6 +148,7 @@ test("depth callout announces sparse anchoring depth changes when enabled", () =
   };
   const plugin = ajrmMarineInstrumentAlerts(app);
   plugin.start({
+    enabled: true,
     monitors: [],
     depthCallout: {
       enabled: true,
