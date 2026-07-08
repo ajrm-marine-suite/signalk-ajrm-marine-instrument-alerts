@@ -1,9 +1,32 @@
 const API = "../plugins/signalk-ajrm-marine-instrument-alerts";
 const LEVELS = ["information", "warning", "danger"];
 const DEFAULT_REPEATS = { information: 300, warning: 60, danger: 15 };
+const DEFAULT_DEPTH_CALLOUT = {
+  enabled: false,
+  path: "environment.depth.belowKeel",
+  sayUnits: false,
+  fineBelowMeters: 3,
+  minimumIntervalSeconds: 5,
+  repeatSameBucketSeconds: 30,
+  targetMinimumMeters: 2,
+  targetMaximumMeters: 3,
+};
 
 const elements = {
   enabled: document.getElementById("enabled"),
+  depthCalloutEnabled: document.getElementById("depthCalloutEnabled"),
+  depthCalloutPath: document.getElementById("depthCalloutPath"),
+  depthTargetMinimum: document.getElementById("depthTargetMinimum"),
+  depthTargetMaximum: document.getElementById("depthTargetMaximum"),
+  depthFineBelow: document.getElementById("depthFineBelow"),
+  depthMinimumInterval: document.getElementById("depthMinimumInterval"),
+  depthRepeatSame: document.getElementById("depthRepeatSame"),
+  depthSayUnits: document.getElementById("depthSayUnits"),
+  depthCalloutState: document.getElementById("depthCalloutState"),
+  depthLiveValue: document.getElementById("depthLiveValue"),
+  depthLastCallout: document.getElementById("depthLastCallout"),
+  depthUpdated: document.getElementById("depthUpdated"),
+  anchorDropped: document.getElementById("anchorDropped"),
   monitors: document.getElementById("monitors"),
   monitorTemplate: document.getElementById("monitorTemplate"),
   addMonitor: document.getElementById("addMonitor"),
@@ -14,17 +37,29 @@ const elements = {
   statusText: document.getElementById("statusText"),
 };
 
-let settings = { enabled: true, monitors: [] };
+let settings = { enabled: true, monitors: [], depthCallout: { ...DEFAULT_DEPTH_CALLOUT } };
 let refreshTimer = null;
 let dirty = false;
 
 elements.enabled.addEventListener("change", markDirty);
+[
+  elements.depthCalloutEnabled,
+  elements.depthCalloutPath,
+  elements.depthTargetMinimum,
+  elements.depthTargetMaximum,
+  elements.depthFineBelow,
+  elements.depthMinimumInterval,
+  elements.depthRepeatSame,
+  elements.depthSayUnits,
+].forEach((element) => element.addEventListener("change", markDirty));
+elements.depthCalloutPath.addEventListener("input", markDirty);
 elements.addMonitor.addEventListener("click", () => {
   settings.monitors.push(blankMonitor(settings.monitors.length + 1));
   dirty = true;
   renderSettings();
 });
 elements.saveSettings.addEventListener("click", saveSettings);
+elements.anchorDropped.addEventListener("click", markAnchorDropped);
 elements.monitors.addEventListener("input", markDirty);
 elements.monitors.addEventListener("change", markDirty);
 
@@ -56,6 +91,7 @@ async function refreshStatus() {
 
 function renderSettings() {
   elements.enabled.checked = settings.enabled !== false;
+  renderDepthCalloutSettings(settings.depthCallout || DEFAULT_DEPTH_CALLOUT);
   elements.monitors.replaceChildren();
   settings.monitors.forEach((monitor, index) => {
     const card = elements.monitorTemplate.content.firstElementChild.cloneNode(true);
@@ -89,6 +125,7 @@ function renderSettings() {
 }
 
 function renderLiveStatus(status) {
+  renderDepthCalloutStatus(status.depthCallout || {});
   const byId = new Map((status.monitors || []).map((monitor) => [monitor.id, monitor]));
   for (const card of elements.monitors.querySelectorAll(".monitor-card")) {
     const index = Number(card.dataset.index);
@@ -139,7 +176,11 @@ async function saveSettings() {
   try {
     const saved = await putJson(`${API}/settings`, payload);
     const verified = await getJson(`${API}/settings`);
-    if (JSON.stringify(saved.monitors) !== JSON.stringify(verified.monitors) || saved.enabled !== verified.enabled) {
+    if (
+      JSON.stringify(saved.monitors) !== JSON.stringify(verified.monitors) ||
+      JSON.stringify(saved.depthCallout) !== JSON.stringify(verified.depthCallout) ||
+      saved.enabled !== verified.enabled
+    ) {
       throw new Error("Saved settings could not be verified");
     }
     settings = verified;
@@ -157,6 +198,7 @@ async function saveSettings() {
 function readSettingsFromPage() {
   return {
     enabled: elements.enabled.checked,
+    depthCallout: readDepthCalloutFromPage(),
     monitors: [...elements.monitors.querySelectorAll(".monitor-card")].map((card, index) => {
       const existing = settings.monitors[index] || {};
       const label = readField(card, "label").trim();
@@ -195,6 +237,14 @@ function readSettingsFromPage() {
 }
 
 function validateSettings(value) {
+  if (value.depthCallout.enabled && !value.depthCallout.path) return "Depth callout needs a Signal K path";
+  if (value.depthCallout.targetMinimumMeters > value.depthCallout.targetMaximumMeters) {
+    return "Depth callout target minimum must be no more than the maximum";
+  }
+  if (!(value.depthCallout.minimumIntervalSeconds >= 1)) return "Depth callout interval must be at least 1 second";
+  if (!(value.depthCallout.repeatSameBucketSeconds >= 5)) {
+    return "Depth callout repeat must be at least 5 seconds";
+  }
   for (const [index, monitor] of value.monitors.entries()) {
     if (!monitor.label) return `Instrument ${index + 1} needs a label`;
     if (!monitor.path) return `${monitor.label} needs a Signal K path`;
@@ -204,6 +254,60 @@ function validateSettings(value) {
     }
   }
   return "";
+}
+
+function renderDepthCalloutSettings(value) {
+  const depthCallout = { ...DEFAULT_DEPTH_CALLOUT, ...value };
+  elements.depthCalloutEnabled.checked = depthCallout.enabled === true;
+  elements.depthCalloutPath.value = depthCallout.path || DEFAULT_DEPTH_CALLOUT.path;
+  elements.depthTargetMinimum.value = numberField(depthCallout.targetMinimumMeters, DEFAULT_DEPTH_CALLOUT.targetMinimumMeters);
+  elements.depthTargetMaximum.value = numberField(depthCallout.targetMaximumMeters, DEFAULT_DEPTH_CALLOUT.targetMaximumMeters);
+  elements.depthFineBelow.value = numberField(depthCallout.fineBelowMeters, DEFAULT_DEPTH_CALLOUT.fineBelowMeters);
+  elements.depthMinimumInterval.value = numberField(
+    depthCallout.minimumIntervalSeconds,
+    DEFAULT_DEPTH_CALLOUT.minimumIntervalSeconds,
+  );
+  elements.depthRepeatSame.value = numberField(depthCallout.repeatSameBucketSeconds, DEFAULT_DEPTH_CALLOUT.repeatSameBucketSeconds);
+  elements.depthSayUnits.checked = depthCallout.sayUnits === true;
+}
+
+function renderDepthCalloutStatus(value) {
+  elements.depthCalloutState.textContent = value.active ? "Armed" : "Off";
+  elements.depthCalloutState.classList.toggle("armed", value.active === true);
+  elements.depthLiveValue.textContent =
+    value.lastDepthMeters == null ? "--" : `${Number(value.lastDepthMeters).toFixed(1)} m`;
+  elements.depthLastCallout.textContent = value.lastAnnouncement?.message || "No callout yet";
+  elements.depthUpdated.textContent = value.lastUpdatedAt
+    ? `Updated ${new Date(value.lastUpdatedAt).toLocaleTimeString()}`
+    : "";
+  elements.anchorDropped.disabled = !Number.isFinite(Number(value.lastDepthMeters));
+}
+
+function readDepthCalloutFromPage() {
+  return {
+    ...(settings.depthCallout || DEFAULT_DEPTH_CALLOUT),
+    enabled: elements.depthCalloutEnabled.checked,
+    path: elements.depthCalloutPath.value.trim(),
+    sourcePath: elements.depthCalloutPath.value.trim(),
+    sayUnits: elements.depthSayUnits.checked,
+    targetMinimumMeters: Number(elements.depthTargetMinimum.value),
+    targetMaximumMeters: Number(elements.depthTargetMaximum.value),
+    fineBelowMeters: Number(elements.depthFineBelow.value),
+    minimumIntervalSeconds: Number(elements.depthMinimumInterval.value),
+    repeatSameBucketSeconds: Number(elements.depthRepeatSame.value),
+  };
+}
+
+async function markAnchorDropped() {
+  elements.anchorDropped.disabled = true;
+  try {
+    const result = await postJson(`${API}/depth-callout/drop`, {});
+    setMessage(`Anchor dropped in ${Number(result.depthMeters).toFixed(1)} m`);
+  } catch (error) {
+    setMessage(error.message, true);
+  } finally {
+    await refreshStatus();
+  }
 }
 
 function blankMonitor(number) {
@@ -248,6 +352,10 @@ function readChecked(card, name) {
 
 function readNumber(card, name) {
   return Number(readField(card, name));
+}
+
+function numberField(value, fallback) {
+  return Number.isFinite(Number(value)) ? String(value) : String(fallback);
 }
 
 function optionalInput(row, name) {
@@ -308,6 +416,17 @@ async function getJson(url) {
 async function putJson(url, body) {
   const response = await fetch(url, {
     method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const responseBody = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(responseBody.error || `HTTP ${response.status}`);
+  return responseBody;
+}
+
+async function postJson(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });

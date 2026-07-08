@@ -26,6 +26,28 @@
         <p id="settingsMessage" class="message"></p>
       </section>
 
+      <section class="callout-card">
+        <div class="callout-heading">
+          <label class="master"><input id="depthCalloutEnabled" type="checkbox" /> Enable depth callout</label>
+          <span id="depthCalloutState" class="active-state">Off</span>
+          <button id="anchorDropped" type="button" class="secondary">Anchor dropped</button>
+        </div>
+        <div class="fields callout-fields">
+          <label>Depth Signal K path<input id="depthCalloutPath" type="text" spellcheck="false" /></label>
+          <label>Target minimum depth<input id="depthTargetMinimum" type="number" min="0" step="0.1" /></label>
+          <label>Target maximum depth<input id="depthTargetMaximum" type="number" min="0" step="0.1" /></label>
+          <label>Use tenths below<input id="depthFineBelow" type="number" min="0" step="0.1" /></label>
+          <label>Minimum interval (s)<input id="depthMinimumInterval" type="number" min="1" step="1" /></label>
+          <label>Repeat unchanged after (s)<input id="depthRepeatSame" type="number" min="5" step="1" /></label>
+          <label class="check-row"><input id="depthSayUnits" type="checkbox" /> Say meters</label>
+        </div>
+        <div class="live-reading">
+          <strong id="depthLiveValue" class="live-value">--</strong>
+          <span id="depthLastCallout" class="live-rate">No callout yet</span>
+          <span id="depthUpdated" class="live-updated"></span>
+        </div>
+      </section>
+
       <section id="monitors" class="monitor-list"></section>
 
       <section class="recent">

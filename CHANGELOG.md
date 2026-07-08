@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.9
+
+- Add a visible Anchoring Depth Callout panel to the web app, including enable,
+  target depth band, timing controls, live depth status, and Anchor dropped.
+
 ## 0.5.8
 
 - Start the plugin by default so Console BITE can see the Instrument Alerts
