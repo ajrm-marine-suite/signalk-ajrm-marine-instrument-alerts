@@ -208,7 +208,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         type: "object",
         title: "Anchoring depth callout",
         description:
-          "Optional sparse depth readout for anchoring. It announces whole metre changes in deeper water and tenths near the anchoring band.",
+          "Optional sparse depth readout for anchoring. It announces depth changes only within the configured target depth band.",
         properties: {
           enabled: { type: "boolean", title: "Enable depth callouts", default: false },
           path: { type: "string", title: "Depth Signal K path", default: DEFAULT_DEPTH_CALLOUT.path },
@@ -532,6 +532,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       lastUpdatedAt: new Date(now).toISOString(),
       currentBucket: bucket,
     };
+    if (!depthWithinCalloutWindow(depthMeters, options.depthCallout)) return;
     const step = depthCalloutStep(depthMeters, options.depthCallout);
     const depthChangedEnough =
       previous.lastAnnouncedBucket == null ||
@@ -824,6 +825,11 @@ function createDepthCalloutState() {
 
 function depthCalloutStep(depthMeters, options) {
   return depthMeters <= options.fineBelowMeters ? options.fineStepMeters : options.coarseStepMeters;
+}
+
+function depthWithinCalloutWindow(depthMeters, options) {
+  const maximum = Math.max(options.targetMinimumMeters, options.targetMaximumMeters);
+  return depthMeters <= maximum + options.hysteresisMeters;
 }
 
 function depthCalloutBucket(depthMeters, options) {

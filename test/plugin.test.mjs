@@ -178,7 +178,7 @@ test("status advertises anchoring depth callout capability", () => {
   assert.equal(projection.value.depthCallout.audio, true);
 });
 
-test("depth callout announces sparse anchoring depth changes when enabled", () => {
+test("depth callout announces only inside the configured anchoring depth window", () => {
   let deltaHandler;
   const messages = [];
   const app = {
@@ -210,6 +210,8 @@ test("depth callout announces sparse anchoring depth changes when enabled", () =
       path: "environment.depth.belowKeel",
       sayUnits: true,
       minimumIntervalSeconds: 1,
+      targetMinimumMeters: 2,
+      targetMaximumMeters: 3,
     },
   });
 
@@ -217,11 +219,11 @@ test("depth callout announces sparse anchoring depth changes when enabled", () =
     updates: [
       {
         timestamp: "2026-07-03T12:00:00.000Z",
-        values: [{ path: "environment.depth.belowKeel", value: 6.2 }],
+        values: [{ path: "environment.depth.belowKeel", value: 8.2 }],
       },
       {
         timestamp: "2026-07-03T12:00:01.500Z",
-        values: [{ path: "environment.depth.belowKeel", value: 5.1 }],
+        values: [{ path: "environment.depth.belowKeel", value: 3.0 }],
       },
       {
         timestamp: "2026-07-03T12:00:03.000Z",
@@ -233,12 +235,11 @@ test("depth callout announces sparse anchoring depth changes when enabled", () =
   const callouts = messages
     .map((message) => message.updates[0].values[0])
     .filter((value) => value.path === "notifications.environment.depth.callout");
-  assert.equal(callouts.length, 3);
-  assert.equal(callouts[0].value.message, "Depth 6 meters.");
-  assert.equal(callouts[1].value.message, "Depth 5 meters.");
-  assert.equal(callouts[2].value.message, "Depth 2.4 meters.");
-  assert.equal(callouts[2].value.data.category, "instrument-depth-callout");
-  assert.equal(callouts[2].value.data.announcement.shouldAnnounce, true);
+  assert.equal(callouts.length, 2);
+  assert.equal(callouts[0].value.message, "Depth 3 meters.");
+  assert.equal(callouts[1].value.message, "Depth 2.4 meters.");
+  assert.equal(callouts[1].value.data.category, "instrument-depth-callout");
+  assert.equal(callouts[1].value.data.announcement.shouldAnnounce, true);
 });
 
 test("Anchor dropped announces depth and selects Traffic Anchor profile when available", () => {

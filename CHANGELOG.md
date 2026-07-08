@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.14
+
+- Limit automatic anchoring depth callouts to the configured target depth
+  window so deeper water, such as 8 metres with a 2-3 metre target, is tracked
+  but not announced.
+
 ## 0.5.13
 
 - Rename Instrument Alerts notification provider/category/settings identifiers

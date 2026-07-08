@@ -8,7 +8,7 @@ Snapshot can verify depth-callout capability from captured Signal K state.
 
 `v0.5.6` adds the first server-side anchoring depth callout capability. It is
 off by default and reads the configured depth path only when enabled, announcing
-sparse whole-metre callouts in deeper water and tenths near the anchoring band.
+depth changes only inside the configured anchoring target depth band.
 The status endpoint advertises the capability for BITE and future UI controls.
 
 `v0.5.0` promotes the current configurable instrument and rate-of-change
