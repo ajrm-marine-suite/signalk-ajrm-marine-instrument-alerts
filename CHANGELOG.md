@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.11
+
+- Make Anchor dropped select the AJRM Marine Traffic Anchor profile when the
+  Traffic in-process API is available, while still announcing the measured
+  anchor-drop depth.
+- Advertise the Anchor dropped Traffic-profile bridge in the status projection
+  so Console BITE can verify the deployed capability.
+
 ## 0.5.10
 
 - Make Save and apply show clean/dirty/saving state: it is only green when

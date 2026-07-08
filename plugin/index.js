@@ -273,6 +273,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         res.status(409).json({ ok: false, error: "No recent depth is available." });
         return;
       }
+      const trafficProfile = selectTrafficAnchorProfile();
       publishDepthCallout({
         depthMeters: depth,
         timestamp: Date.now(),
@@ -280,7 +281,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         forced: true,
         kind: "anchor-dropped",
       });
-      res.json({ ok: true, depthMeters: depth });
+      res.json({ ok: true, depthMeters: depth, trafficProfile });
     });
   };
 
@@ -665,6 +666,10 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       version: packageInfo.version,
       enabled: options.enabled,
       timestamp: new Date().toISOString(),
+      capabilities: {
+        anchoringDepthCallout: true,
+        anchorDroppedSelectsTrafficProfile: true,
+      },
       monitors: options.monitors.map((monitor) => ({
         ...monitor,
         state: publicState(states.get(monitor.id) || createMonitorState()),
@@ -695,6 +700,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
     return {
       ...options.depthCallout,
       available: true,
+      anchorDroppedSelectsTrafficProfile: true,
       active: options.enabled && options.depthCallout.enabled,
       lastDepthMeters: depthCalloutState.lastDepthMeters,
       lastUpdatedAt: depthCalloutState.lastUpdatedAt,
@@ -709,6 +715,34 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
 
   function enabledMonitorCount() {
     return options.enabled ? options.monitors.filter((monitor) => monitor.enabled).length : 0;
+  }
+
+  function selectTrafficAnchorProfile() {
+    const api = app.ajrmMarineTrafficApi;
+    if (!api || typeof api.setProfile !== "function") {
+      return {
+        requested: "anchor",
+        available: false,
+        ok: false,
+        message: "AJRM Marine Traffic profile API is not available.",
+      };
+    }
+    try {
+      const profiles = api.setProfile("anchor");
+      return {
+        requested: "anchor",
+        available: true,
+        ok: true,
+        profile: profiles?.current || "anchor",
+      };
+    } catch (error) {
+      return {
+        requested: "anchor",
+        available: true,
+        ok: false,
+        error: error.message,
+      };
+    }
   }
 
   function loadRuntimeSettings() {

@@ -185,3 +185,84 @@ test("depth callout announces sparse anchoring depth changes when enabled", () =
   assert.equal(callouts[2].value.data.category, "instrument-depth-callout");
   assert.equal(callouts[2].value.data.announcement.shouldAnnounce, true);
 });
+
+test("Anchor dropped announces depth and selects Traffic Anchor profile when available", () => {
+  let deltaHandler;
+  const messages = [];
+  const selectedProfiles = [];
+  const routes = new Map();
+  const app = {
+    ajrmMarineTrafficApi: {
+      setProfile(profile) {
+        selectedProfiles.push(profile);
+        return { current: profile };
+      },
+    },
+    subscriptionmanager: {
+      subscribe(_subscription, unsubscribes, _onError, onDelta) {
+        deltaHandler = onDelta;
+        unsubscribes.push(() => {});
+      },
+    },
+    getSelfPath() {
+      return null;
+    },
+    getDataDirPath() {
+      return null;
+    },
+    handleMessage(_pluginId, message) {
+      messages.push(message);
+    },
+    setPluginStatus() {},
+    error() {},
+  };
+  const plugin = ajrmMarineInstrumentAlerts(app);
+  plugin.registerWithRouter({
+    get() {},
+    put() {},
+    post(path, handler) {
+      routes.set(`POST ${path}`, handler);
+    },
+  });
+  plugin.start({
+    enabled: true,
+    monitors: [],
+    depthCallout: {
+      enabled: true,
+      path: "environment.depth.belowKeel",
+    },
+  });
+
+  deltaHandler({
+    updates: [
+      {
+        timestamp: "2026-07-08T12:00:00.000Z",
+        values: [{ path: "environment.depth.belowKeel", value: 4.4 }],
+      },
+    ],
+  });
+
+  let response = null;
+  routes.get("POST /depth-callout/drop")({}, {
+    json(value) {
+      response = value;
+    },
+    status() {
+      throw new Error("Anchor dropped should succeed with recent depth");
+    },
+  });
+
+  assert.deepEqual(selectedProfiles, ["anchor"]);
+  assert.equal(response.ok, true);
+  assert.equal(response.depthMeters, 4.4);
+  assert.deepEqual(response.trafficProfile, {
+    requested: "anchor",
+    available: true,
+    ok: true,
+    profile: "anchor",
+  });
+  const anchorAnnouncement = messages
+    .map((message) => message.updates[0].values[0])
+    .find((value) => value.value?.data?.announcement?.id?.startsWith("anchor-dropped-"));
+  assert.equal(anchorAnnouncement.value.message, "Anchor dropped in 4 meters.");
+});
