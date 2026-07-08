@@ -40,6 +40,7 @@ const elements = {
 let settings = { enabled: true, monitors: [], depthCallout: { ...DEFAULT_DEPTH_CALLOUT } };
 let refreshTimer = null;
 let dirty = false;
+let saving = false;
 
 elements.enabled.addEventListener("change", markDirty);
 [
@@ -68,6 +69,7 @@ start();
 async function start() {
   try {
     settings = await getJson(`${API}/settings`);
+    dirty = false;
     renderSettings();
     await refreshStatus();
   } catch (error) {
@@ -122,6 +124,7 @@ function renderSettings() {
     });
     elements.monitors.append(card);
   });
+  updateSaveButton();
 }
 
 function renderLiveStatus(status) {
@@ -165,6 +168,7 @@ function renderRecentEvents(events) {
 }
 
 async function saveSettings() {
+  if (!dirty || saving) return;
   const payload = readSettingsFromPage();
   const validationError = validateSettings(payload);
   if (validationError) {
@@ -172,7 +176,8 @@ async function saveSettings() {
     return;
   }
 
-  elements.saveSettings.disabled = true;
+  saving = true;
+  updateSaveButton();
   try {
     const saved = await putJson(`${API}/settings`, payload);
     const verified = await getJson(`${API}/settings`);
@@ -191,7 +196,8 @@ async function saveSettings() {
   } catch (error) {
     setMessage(error.message, true);
   } finally {
-    elements.saveSettings.disabled = false;
+    saving = false;
+    updateSaveButton();
   }
 }
 
@@ -365,7 +371,21 @@ function optionalInput(row, name) {
 
 function markDirty() {
   dirty = true;
+  updateSaveButton();
   setMessage("Unsaved changes");
+}
+
+function updateSaveButton() {
+  elements.saveSettings.disabled = saving || !dirty;
+  elements.saveSettings.classList.toggle("dirty", dirty && !saving);
+  elements.saveSettings.classList.toggle("saving", saving);
+  if (saving) {
+    elements.saveSettings.textContent = "Saving...";
+  } else if (dirty) {
+    elements.saveSettings.textContent = "Save and apply";
+  } else {
+    elements.saveSettings.textContent = "Saved";
+  }
 }
 
 function labelLevel(level) {

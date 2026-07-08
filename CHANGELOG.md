@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.10
+
+- Make Save and apply show clean/dirty/saving state: it is only green when
+  settings have unsaved changes.
+
 ## 0.5.9
 
 - Add a visible Anchoring Depth Callout panel to the web app, including enable,
