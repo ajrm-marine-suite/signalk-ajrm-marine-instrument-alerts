@@ -16,6 +16,7 @@ const {
 const PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";
 const SETTINGS_FILE = "audible-instruments-settings.json";
 const NOTIFICATION_ROOT = "notifications.ajrmMarineInstrumentAlerts";
+const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const LEVEL_SCHEMA = {
   type: "object",
   properties: {
@@ -274,13 +275,28 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         return;
       }
       const trafficProfile = selectTrafficAnchorProfile();
+      const message = `Anchor dropped in ${formatDepth(depth, true)}.`;
       publishDepthCallout({
         depthMeters: depth,
         timestamp: Date.now(),
-        message: `Anchor dropped in ${formatDepth(depth, true)}.`,
+        message,
         forced: true,
         kind: "anchor-dropped",
       });
+      depthCalloutState = {
+        ...depthCalloutState,
+        lastAnnouncement: {
+          message,
+          kind: "anchor-dropped",
+          ts: new Date().toISOString(),
+        },
+        lastAnchorDrop: {
+          depthMeters: depth,
+          message,
+          trafficProfile,
+          ts: new Date().toISOString(),
+        },
+      };
       res.json({ ok: true, depthMeters: depth, trafficProfile });
     });
   };
@@ -539,7 +555,11 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       ...depthCalloutState,
       lastAnnouncedBucket: bucket,
       lastAnnouncedAt: now,
-      lastAnnouncement: message,
+      lastAnnouncement: {
+        message,
+        kind: "depth-callout",
+        ts: new Date(now).toISOString(),
+      },
     };
   }
 
@@ -705,6 +725,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       lastDepthMeters: depthCalloutState.lastDepthMeters,
       lastUpdatedAt: depthCalloutState.lastUpdatedAt,
       lastAnnouncement: depthCalloutState.lastAnnouncement,
+      lastAnchorDrop: depthCalloutState.lastAnchorDrop,
     };
   }
 
@@ -718,7 +739,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   }
 
   function selectTrafficAnchorProfile() {
-    const api = app.ajrmMarineTrafficApi;
+    const api = app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY];
     if (!api || typeof api.setProfile !== "function") {
       return {
         requested: "anchor",
@@ -785,6 +806,7 @@ function createDepthCalloutState() {
     lastAnnouncedBucket: null,
     lastAnnouncedAt: null,
     lastAnnouncement: null,
+    lastAnchorDrop: null,
   };
 }
 

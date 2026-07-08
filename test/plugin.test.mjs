@@ -242,17 +242,23 @@ test("Anchor dropped announces depth and selects Traffic Anchor profile when ava
     ],
   });
 
-  let response = null;
-  routes.get("POST /depth-callout/drop")({}, {
-    json(value) {
-      response = value;
-    },
-    status() {
-      throw new Error("Anchor dropped should succeed with recent depth");
-    },
-  });
+  const postAnchorDropped = () => {
+    let response = null;
+    routes.get("POST /depth-callout/drop")({}, {
+      json(value) {
+        response = value;
+      },
+      status() {
+        throw new Error("Anchor dropped should succeed with recent depth");
+      },
+    });
+    return response;
+  };
 
-  assert.deepEqual(selectedProfiles, ["anchor"]);
+  const response = postAnchorDropped();
+  const secondResponse = postAnchorDropped();
+
+  assert.deepEqual(selectedProfiles, ["anchor", "anchor"]);
   assert.equal(response.ok, true);
   assert.equal(response.depthMeters, 4.4);
   assert.deepEqual(response.trafficProfile, {
@@ -261,8 +267,90 @@ test("Anchor dropped announces depth and selects Traffic Anchor profile when ava
     ok: true,
     profile: "anchor",
   });
+  assert.deepEqual(secondResponse.trafficProfile, response.trafficProfile);
   const anchorAnnouncement = messages
     .map((message) => message.updates[0].values[0])
-    .find((value) => value.value?.data?.announcement?.id?.startsWith("anchor-dropped-"));
-  assert.equal(anchorAnnouncement.value.message, "Anchor dropped in 4 meters.");
+    .filter((value) => value.value?.data?.announcement?.id?.startsWith("anchor-dropped-"));
+  assert.equal(anchorAnnouncement.length, 2);
+  assert.equal(anchorAnnouncement.at(-1).value.message, "Anchor dropped in 4 meters.");
+});
+
+test("Anchor dropped can find Traffic API from the shared registry", () => {
+  let deltaHandler;
+  const selectedProfiles = [];
+  const routes = new Map();
+  const registry = Symbol.for("ajrmMarineTrafficApi");
+  const previousRegistry = globalThis[registry];
+  globalThis[registry] = {
+    setProfile(profile) {
+      selectedProfiles.push(profile);
+      return { current: profile };
+    },
+  };
+  const app = {
+    subscriptionmanager: {
+      subscribe(_subscription, unsubscribes, _onError, onDelta) {
+        deltaHandler = onDelta;
+        unsubscribes.push(() => {});
+      },
+    },
+    getSelfPath() {
+      return null;
+    },
+    getDataDirPath() {
+      return null;
+    },
+    handleMessage() {},
+    setPluginStatus() {},
+    error() {},
+  };
+  try {
+    const plugin = ajrmMarineInstrumentAlerts(app);
+    plugin.registerWithRouter({
+      get() {},
+      put() {},
+      post(path, handler) {
+        routes.set(`POST ${path}`, handler);
+      },
+    });
+    plugin.start({
+      enabled: true,
+      monitors: [],
+      depthCallout: {
+        enabled: true,
+        path: "environment.depth.belowKeel",
+      },
+    });
+    deltaHandler({
+      updates: [
+        {
+          timestamp: "2026-07-08T12:00:00.000Z",
+          values: [{ path: "environment.depth.belowKeel", value: 3.7 }],
+        },
+      ],
+    });
+    let response = null;
+    routes.get("POST /depth-callout/drop")(
+      {},
+      {
+        json(value) {
+          response = value;
+        },
+        status() {
+          throw new Error("Anchor dropped should succeed with recent depth");
+        },
+      },
+    );
+
+    assert.deepEqual(selectedProfiles, ["anchor"]);
+    assert.deepEqual(response.trafficProfile, {
+      requested: "anchor",
+      available: true,
+      ok: true,
+      profile: "anchor",
+    });
+  } finally {
+    if (previousRegistry === undefined) delete globalThis[registry];
+    else globalThis[registry] = previousRegistry;
+  }
 });

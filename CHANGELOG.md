@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.12
+
+- Keep Anchor dropped repeatable for re-anchoring, changing the button to
+  "Mark anchor dropped again" after a drop while a recent depth is available.
+- Show whether Anchor dropped also set the Traffic profile to Anchor.
+- Fall back to Traffic's shared API registry when the local plugin app object
+  does not expose the Traffic API.
+
 ## 0.5.11
 
 - Make Anchor dropped select the AJRM Marine Traffic Anchor profile when the
