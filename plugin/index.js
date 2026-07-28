@@ -10,6 +10,7 @@ const {
 } = require("./lib/monitor-engine");
 const {
   activeEnvelope,
+  eventEnvelope,
   resetProviderSession,
 } = require("./lib/notifications-plus-envelope");
 
@@ -18,6 +19,9 @@ const SETTINGS_FILE = "ajrm-marine-instrument-alerts-settings.json";
 const PREVIOUS_SETTINGS_FILE = "audible-instruments-settings.json";
 const NOTIFICATION_ROOT = "notifications.ajrmMarineInstrumentAlerts";
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
+const DEPTH_CALLOUT_NOTIFICATION_PATH =
+  "notifications.environment.depth.callout";
+const DEPTH_CALLOUT_CLEAR_MILLISECONDS = 30_000;
 const LEVEL_SCHEMA = {
   type: "object",
   properties: {
@@ -122,6 +126,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   let unsubscribes = [];
   let recentEvents = [];
   let depthCalloutState = createDepthCalloutState();
+  let depthCalloutClearTimer = null;
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine Instrument Alerts";
@@ -230,6 +235,9 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       ...loadRuntimeSettings(),
     });
     resetStates();
+    clearDepthCalloutNotification("plugin-started", null, {
+      force: true,
+    });
     subscribeToMonitors();
     seedCurrentValues();
     publishStatusProjection();
@@ -298,6 +306,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
           ts: new Date().toISOString(),
         },
       };
+      publishStatusProjection();
       res.json({ ok: true, depthMeters: depth, trafficProfile });
     });
   };
@@ -532,7 +541,12 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       lastUpdatedAt: new Date(now).toISOString(),
       currentBucket: bucket,
     };
-    if (!depthWithinCalloutWindow(depthMeters, options.depthCallout)) return;
+    if (!depthWithinCalloutWindow(depthMeters, options.depthCallout)) {
+      if (clearDepthCalloutNotification("depth-above-callout-band")) {
+        publishStatusProjection();
+      }
+      return;
+    }
     const step = depthCalloutStep(depthMeters, options.depthCallout);
     const depthChangedEnough =
       previous.lastAnnouncedBucket == null ||
@@ -563,6 +577,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         ts: new Date(now).toISOString(),
       },
     };
+    publishStatusProjection();
   }
 
   function publishDepthCallout({ depthMeters, timestamp, message, forced, kind }) {
@@ -581,14 +596,22 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       label: "Depth",
       path: options.depthCallout.path,
     };
-    const ajrmMarineNotifications = activeEnvelope(monitor, event);
+    const ajrmMarineNotifications = eventEnvelope(monitor, event, {
+      category: "instrument-depth-callout",
+      expiresSeconds: DEPTH_CALLOUT_CLEAR_MILLISECONDS / 1000,
+      context: {
+        depthMeters,
+        forced: forced === true,
+        kind,
+      },
+    });
     app.handleMessage(PLUGIN_ID, {
       context: "vessels.self",
       updates: [
         {
           values: [
             {
-              path: "notifications.environment.depth.callout",
+              path: DEPTH_CALLOUT_NOTIFICATION_PATH,
               value: {
                 state: "alert",
                 method: ["sound"],
@@ -626,6 +649,67 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         },
       ],
     });
+    armDepthCalloutClear(event.id);
+  }
+
+  function armDepthCalloutClear(eventId) {
+    if (depthCalloutClearTimer) {
+      clearTimeout(depthCalloutClearTimer);
+      depthCalloutClearTimer = null;
+    }
+    const clearsAt = new Date(
+      Date.now() + DEPTH_CALLOUT_CLEAR_MILLISECONDS,
+    ).toISOString();
+    depthCalloutState = {
+      ...depthCalloutState,
+      activeNotificationId: eventId,
+      notificationClearsAt: clearsAt,
+    };
+    depthCalloutClearTimer = setTimeout(() => {
+      depthCalloutClearTimer = null;
+      clearDepthCalloutNotification("expired", eventId);
+      publishStatusProjection();
+    }, DEPTH_CALLOUT_CLEAR_MILLISECONDS);
+    depthCalloutClearTimer.unref?.();
+  }
+
+  function clearDepthCalloutNotification(
+    reason,
+    expectedEventId = null,
+    { force = false } = {},
+  ) {
+    if (
+      expectedEventId &&
+      depthCalloutState.activeNotificationId !== expectedEventId
+    ) {
+      return false;
+    }
+    if (depthCalloutClearTimer) {
+      clearTimeout(depthCalloutClearTimer);
+      depthCalloutClearTimer = null;
+    }
+    if (!depthCalloutState.activeNotificationId && force !== true) return false;
+    app.handleMessage(PLUGIN_ID, {
+      context: "vessels.self",
+      updates: [
+        {
+          values: [
+            {
+              path: DEPTH_CALLOUT_NOTIFICATION_PATH,
+              value: null,
+            },
+          ],
+        },
+      ],
+    });
+    depthCalloutState = {
+      ...depthCalloutState,
+      activeNotificationId: null,
+      notificationClearsAt: null,
+      lastClearedAt: new Date().toISOString(),
+      lastClearReason: reason,
+    };
+    return true;
   }
 
   function clearNotification(monitorId) {
@@ -651,9 +735,14 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
 
   function clearPublishedNotifications() {
     for (const monitor of options.monitors) clearNotification(monitor.id);
+    clearDepthCalloutNotification("plugin-stopped-or-reconfigured");
   }
 
   function resetStates() {
+    if (depthCalloutClearTimer) {
+      clearTimeout(depthCalloutClearTimer);
+      depthCalloutClearTimer = null;
+    }
     states = new Map(options.monitors.map((monitor) => [monitor.id, createMonitorState()]));
     depthCalloutState = createDepthCalloutState();
     recentEvents = [];
@@ -728,6 +817,10 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       lastUpdatedAt: depthCalloutState.lastUpdatedAt,
       lastAnnouncement: depthCalloutState.lastAnnouncement,
       lastAnchorDrop: depthCalloutState.lastAnchorDrop,
+      notificationActive: Boolean(depthCalloutState.activeNotificationId),
+      notificationClearsAt: depthCalloutState.notificationClearsAt,
+      lastNotificationClearedAt: depthCalloutState.lastClearedAt,
+      lastNotificationClearReason: depthCalloutState.lastClearReason,
     };
   }
 
@@ -820,6 +913,10 @@ function createDepthCalloutState() {
     lastAnnouncedAt: null,
     lastAnnouncement: null,
     lastAnchorDrop: null,
+    activeNotificationId: null,
+    notificationClearsAt: null,
+    lastClearedAt: null,
+    lastClearReason: null,
   };
 }
 

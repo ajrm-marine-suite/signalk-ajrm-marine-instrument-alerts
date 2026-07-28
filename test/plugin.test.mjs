@@ -178,6 +178,38 @@ test("status advertises anchoring depth callout capability", () => {
   assert.equal(projection.value.depthCallout.audio, true);
 });
 
+test("plugin startup clears a callout retained by an older release", () => {
+  const messages = [];
+  const app = {
+    subscriptionmanager: {
+      subscribe(_subscription, unsubscribes) {
+        unsubscribes.push(() => {});
+      },
+    },
+    getSelfPath() {
+      return null;
+    },
+    getDataDirPath() {
+      return null;
+    },
+    handleMessage(_pluginId, message) {
+      messages.push(message);
+    },
+    setPluginStatus() {},
+    error() {},
+  };
+  const plugin = ajrmMarineInstrumentAlerts(app);
+  plugin.start({});
+  const startupClear = messages
+    .flatMap((message) => message.updates?.[0]?.values || [])
+    .find(
+      (value) =>
+        value.path === "notifications.environment.depth.callout",
+    );
+  assert.ok(startupClear);
+  assert.equal(startupClear.value, null);
+});
+
 test("depth callout announces only inside the configured anchoring depth window", () => {
   let deltaHandler;
   const messages = [];
@@ -234,12 +266,133 @@ test("depth callout announces only inside the configured anchoring depth window"
 
   const callouts = messages
     .map((message) => message.updates[0].values[0])
-    .filter((value) => value.path === "notifications.environment.depth.callout");
+    .filter(
+      (value) =>
+        value.path === "notifications.environment.depth.callout" &&
+        value.value,
+    );
   assert.equal(callouts.length, 2);
   assert.equal(callouts[0].value.message, "Depth 3 meters.");
   assert.equal(callouts[1].value.message, "Depth 2.4 meters.");
   assert.equal(callouts[1].value.data.category, "instrument-depth-callout");
   assert.equal(callouts[1].value.data.announcement.shouldAnnounce, true);
+  assert.equal(
+    callouts[1].value.data.ajrmMarineNotifications.lifecycle,
+    "event",
+  );
+  assert.equal(
+    callouts[1].value.data.ajrmMarineNotifications.delivery.expiresSeconds,
+    30,
+  );
+
+  deltaHandler({
+    updates: [
+      {
+        timestamp: "2026-07-03T12:00:04.000Z",
+        values: [{ path: "environment.depth.belowKeel", value: 3.2 }],
+      },
+    ],
+  });
+  const cleared = messages
+    .map((message) => message.updates[0].values[0])
+    .filter((value) => value.path === "notifications.environment.depth.callout")
+    .at(-1);
+  assert.equal(cleared.value, null);
+  assert.equal(
+    messages.some(
+      (message) =>
+        message.updates[0].values[0].path ===
+          "notifications.environment.depth.belowKeel" &&
+        message.updates[0].values[0].value === null,
+    ),
+    false,
+    "leaving the callout band must not clear the separate shallow-depth monitor",
+  );
+});
+
+test("latest depth callout resets the explicit 30-second clear timer", () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const timers = [];
+  let plugin;
+  globalThis.setTimeout = (callback, milliseconds) => {
+    const timer = {
+      callback,
+      milliseconds,
+      cleared: false,
+      unref() {},
+    };
+    timers.push(timer);
+    return timer;
+  };
+  globalThis.clearTimeout = (timer) => {
+    timer.cleared = true;
+  };
+  try {
+    let deltaHandler;
+    const messages = [];
+    const app = {
+      subscriptionmanager: {
+        subscribe(_subscription, unsubscribes, _onError, onDelta) {
+          deltaHandler = onDelta;
+          unsubscribes.push(() => {});
+        },
+      },
+      getSelfPath() {
+        return null;
+      },
+      getDataDirPath() {
+        return null;
+      },
+      handleMessage(_pluginId, message) {
+        messages.push(message);
+      },
+      setPluginStatus() {},
+      error() {},
+    };
+    plugin = ajrmMarineInstrumentAlerts(app);
+    plugin.start({
+      enabled: true,
+      monitors: [],
+      depthCallout: {
+        enabled: true,
+        path: "environment.depth.belowKeel",
+        minimumIntervalSeconds: 1,
+        targetMinimumMeters: 2,
+        targetMaximumMeters: 3,
+      },
+    });
+
+    deltaHandler({
+      updates: [
+        {
+          timestamp: "2026-07-03T12:00:00.000Z",
+          values: [{ path: "environment.depth.belowKeel", value: 3 }],
+        },
+        {
+          timestamp: "2026-07-03T12:00:01.500Z",
+          values: [{ path: "environment.depth.belowKeel", value: 2 }],
+        },
+      ],
+    });
+
+    assert.equal(timers.length, 2);
+    assert.equal(timers[0].milliseconds, 30_000);
+    assert.equal(timers[0].cleared, true);
+    assert.equal(timers[1].cleared, false);
+    timers[1].callback();
+    const calloutValues = messages
+      .flatMap((message) => message.updates?.[0]?.values || [])
+      .filter(
+        (value) =>
+          value.path === "notifications.environment.depth.callout",
+      );
+    assert.equal(calloutValues.at(-1).value, null);
+  } finally {
+    plugin?.stop();
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
 });
 
 test("Anchor dropped announces depth and selects Traffic Anchor profile when available", () => {
@@ -329,6 +482,10 @@ test("Anchor dropped announces depth and selects Traffic Anchor profile when ava
     .filter((value) => value.value?.data?.announcement?.id?.startsWith("anchor-dropped-"));
   assert.equal(anchorAnnouncement.length, 2);
   assert.equal(anchorAnnouncement.at(-1).value.message, "Anchor dropped in 4 meters.");
+  assert.equal(
+    anchorAnnouncement.at(-1).value.data.ajrmMarineNotifications.lifecycle,
+    "event",
+  );
 });
 
 test("Anchor dropped can find Traffic API from the shared registry", () => {

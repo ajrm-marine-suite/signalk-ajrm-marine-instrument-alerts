@@ -101,6 +101,63 @@ function resolvedEnvelope(monitorId, now = Date.now()) {
   return result;
 }
 
+function eventEnvelope(
+  monitor,
+  event,
+  {
+    category = "instrument-event",
+    expiresSeconds = 30,
+    context = {},
+  } = {},
+) {
+  const eventId = String(
+    event?.id || `${PROVIDER}:event:${Date.now()}`,
+  );
+  return {
+    schemaVersion: 1,
+    provider: PROVIDER,
+    providerSessionId,
+    sourceSequence: ++sourceSequence,
+    correlationId: randomUUID(),
+    subjectKey: `${PROVIDER}:${monitor?.id || "instrument-event"}`,
+    eventId,
+    revision: Date.parse(event?.ts) || Date.now(),
+    lifecycle: "event",
+    timestamp: event?.ts || new Date().toISOString(),
+    priority: {
+      level: "information",
+      score: 250,
+    },
+    supersedes: [],
+    history: { policy: "always" },
+    delivery: {
+      visual: true,
+      audio: true,
+      preempt: false,
+      localPlayback: true,
+      streamOutput: true,
+      repeatSeconds: 0,
+      expiresSeconds: Math.max(1, Number(expiresSeconds) || 30),
+    },
+    presentation: {
+      title: monitor?.label || "Instrument",
+      label: "Information",
+      message: event?.message || "",
+      category,
+      facts: [],
+    },
+    actions: [],
+    context: {
+      monitorId: monitor?.id || null,
+      path: monitor?.path || null,
+      value: event?.value ?? null,
+      unit: event?.unit || null,
+      ratePerMinute: event?.ratePerMinute ?? null,
+      ...context,
+    },
+  };
+}
+
 function correlationFor(subjectKey) {
   const existing = monitorCorrelations.get(subjectKey);
   if (existing) return existing;
@@ -117,6 +174,7 @@ function resetProviderSession() {
 
 module.exports = {
   activeEnvelope,
+  eventEnvelope,
   resetProviderSession,
   resolvedEnvelope,
 };

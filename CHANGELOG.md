@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.1
+
+- Publish anchoring depth callouts and Anchor dropped announcements as
+  one-shot notification events instead of continuing active alerts.
+- Keep a stable notification subject across successive callout events while
+  giving each event a unique ID, so Audio replaces stale queued depths with the
+  latest callout.
+- Explicitly clear the callout notification 30 seconds after the latest
+  callout, resetting that timer whenever a newer callout is published.
+- Clear the callout immediately when depth rises above the configured upper
+  band plus hysteresis, while leaving the independent continuing
+  `notifications.environment.depth.belowKeel` alarm untouched.
+- Publish one explicit callout clear when the plugin starts, removing an
+  `alert` value that may have been retained from an older release.
+
 ## 0.5.14
 
 - Limit automatic anchoring depth callouts to the configured target depth

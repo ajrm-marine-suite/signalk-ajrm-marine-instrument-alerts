@@ -2,6 +2,12 @@
 
 ## Version 1 baseline
 
+`v0.6.1` makes anchoring depth callouts and **Anchor dropped** one-shot events.
+The newest callout supersedes an older queued depth, clears from the retained
+Signal K notification after 30 seconds, and clears sooner in safely deeper
+water. The separate configured shallow-depth alarm keeps its own threshold and
+hysteresis lifecycle.
+
 `v0.5.7` publishes Instrument Alerts status under
 `vessels.self.plugins.ajrmMarineInstrumentAlerts` so Console BITE, Capture, and
 Snapshot can verify depth-callout capability from captured Signal K state.
@@ -10,6 +16,20 @@ Snapshot can verify depth-callout capability from captured Signal K state.
 off by default and reads the configured depth path only when enabled, announcing
 depth changes only inside the configured anchoring target depth band.
 The status endpoint advertises the capability for BITE and future UI controls.
+
+Depth callouts and **Anchor dropped** are one-shot events, not continuing
+shallow-water alarms. The temporary notification at
+`notifications.environment.depth.callout` is explicitly cleared 30 seconds
+after the latest callout, with each newer callout resetting that timer. It is
+also cleared immediately when depth rises above the configured upper target
+band plus hysteresis.
+
+The configured depth monitor remains independent. If
+`environment.depth.belowKeel` continues to meet an Information, Warning, or
+Danger threshold, its notification at
+`notifications.environment.depth.belowKeel` remains active until that
+threshold clears with the monitor's own hysteresis. Clearing a one-shot
+callout never hides a continuing shallow-depth condition.
 
 `v0.5.0` promotes the current configurable instrument and rate-of-change
 notification provider as the working baseline. It remains provider-owned policy
@@ -56,7 +76,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.5.7 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.1 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
