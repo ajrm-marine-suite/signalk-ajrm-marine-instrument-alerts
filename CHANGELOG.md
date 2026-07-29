@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+- Make the test command portable to Node 20 on ARMv7 by allowing the shell to
+  expand the top-level test-file pattern instead of passing a recursive glob
+  literally to Node.
+
 ## 0.6.2
 
 - Label the anchoring action **Drop Anchor** until it succeeds, then show

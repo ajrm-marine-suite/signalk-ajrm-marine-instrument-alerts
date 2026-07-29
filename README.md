@@ -2,6 +2,9 @@
 
 ## Version 1 baseline
 
+`v0.6.3` includes the same anchor-button lifecycle and makes its test command
+portable to Node 20 on ARMv7/Cerbo-class systems.
+
 `v0.6.2` labels the anchoring action **Drop Anchor** initially and
 **Anchor Dropped** after it succeeds. The button resets to **Drop Anchor** when
 AJRM Marine Traffic explicitly reports a profile other than Anchor.
@@ -80,7 +83,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.2 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.3 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
