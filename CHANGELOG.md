@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2
+
+- Label the anchoring action **Drop Anchor** until it succeeds, then show
+  **Anchor Dropped** without the temporary "Mark anchor dropped again" wording.
+- Reset the button to **Drop Anchor** when AJRM Marine Traffic explicitly
+  reports that the active profile has moved away from Anchor.
+
 ## 0.6.1
 
 - Publish anchoring depth callouts and Anchor dropped announcements as

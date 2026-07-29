@@ -2,6 +2,10 @@
 
 ## Version 1 baseline
 
+`v0.6.2` labels the anchoring action **Drop Anchor** initially and
+**Anchor Dropped** after it succeeds. The button resets to **Drop Anchor** when
+AJRM Marine Traffic explicitly reports a profile other than Anchor.
+
 `v0.6.1` makes anchoring depth callouts and **Anchor dropped** one-shot events.
 The newest callout supersedes an older queued depth, clears from the retained
 Signal K notification after 30 seconds, and clears sooner in safely deeper
@@ -76,7 +80,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.1 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.2 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

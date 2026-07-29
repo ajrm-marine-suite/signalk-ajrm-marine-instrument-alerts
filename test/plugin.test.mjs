@@ -399,11 +399,16 @@ test("Anchor dropped announces depth and selects Traffic Anchor profile when ava
   let deltaHandler;
   const messages = [];
   const selectedProfiles = [];
+  let currentTrafficProfile = "coastal";
   const routes = new Map();
   const app = {
     ajrmMarineTrafficApi: {
+      status() {
+        return { profiles: { current: currentTrafficProfile } };
+      },
       setProfile(profile) {
         selectedProfiles.push(profile);
+        currentTrafficProfile = profile;
         return { current: profile };
       },
     },
@@ -427,7 +432,9 @@ test("Anchor dropped announces depth and selects Traffic Anchor profile when ava
   };
   const plugin = ajrmMarineInstrumentAlerts(app);
   plugin.registerWithRouter({
-    get() {},
+    get(path, handler) {
+      routes.set(`GET ${path}`, handler);
+    },
     put() {},
     post(path, handler) {
       routes.set(`POST ${path}`, handler);
@@ -486,6 +493,24 @@ test("Anchor dropped announces depth and selects Traffic Anchor profile when ava
     anchorAnnouncement.at(-1).value.data.ajrmMarineNotifications.lifecycle,
     "event",
   );
+
+  const readStatus = () => {
+    let response = null;
+    routes.get("GET /status")({}, {
+      json(value) {
+        response = value;
+      },
+    });
+    return response;
+  };
+  assert.equal(readStatus().depthCallout.anchorDropActive, true);
+  assert.deepEqual(readStatus().trafficProfile, { available: true, current: "anchor" });
+
+  currentTrafficProfile = "coastal";
+  assert.equal(readStatus().depthCallout.anchorDropActive, false);
+
+  currentTrafficProfile = "anchor";
+  assert.equal(readStatus().depthCallout.anchorDropActive, false);
 });
 
 test("Anchor dropped can find Traffic API from the shared registry", () => {

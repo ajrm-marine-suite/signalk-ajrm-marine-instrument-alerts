@@ -294,6 +294,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       });
       depthCalloutState = {
         ...depthCalloutState,
+        anchorDropActive: true,
         lastAnnouncement: {
           message,
           kind: "anchor-dropped",
@@ -771,6 +772,8 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   }
 
   function statusResponse() {
+    const trafficProfile = currentTrafficProfileStatus();
+    resetAnchorDropAfterProfileChange(trafficProfile);
     return {
       ok: true,
       plugin: PLUGIN_ID,
@@ -786,6 +789,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         state: publicState(states.get(monitor.id) || createMonitorState()),
       })),
       depthCallout: publicDepthCalloutStatus(),
+      trafficProfile,
       recentEvents,
     };
   }
@@ -817,6 +821,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       lastUpdatedAt: depthCalloutState.lastUpdatedAt,
       lastAnnouncement: depthCalloutState.lastAnnouncement,
       lastAnchorDrop: depthCalloutState.lastAnchorDrop,
+      anchorDropActive: depthCalloutState.anchorDropActive === true,
       notificationActive: Boolean(depthCalloutState.activeNotificationId),
       notificationClearsAt: depthCalloutState.notificationClearsAt,
       lastNotificationClearedAt: depthCalloutState.lastClearedAt,
@@ -834,7 +839,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   }
 
   function selectTrafficAnchorProfile() {
-    const api = app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY];
+    const api = trafficApi();
     if (!api || typeof api.setProfile !== "function") {
       return {
         requested: "anchor",
@@ -857,6 +862,37 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         available: true,
         ok: false,
         error: error.message,
+      };
+    }
+  }
+
+  function trafficApi() {
+    return app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY] || null;
+  }
+
+  function currentTrafficProfileStatus() {
+    const api = trafficApi();
+    if (!api || typeof api.status !== "function") {
+      return { available: false, current: null };
+    }
+    try {
+      const status = api.status();
+      const current = String(status?.profiles?.current || status?.profile || "").trim().toLowerCase() || null;
+      return { available: true, current };
+    } catch (error) {
+      return { available: true, current: null, error: error.message };
+    }
+  }
+
+  function resetAnchorDropAfterProfileChange(trafficProfile) {
+    if (
+      depthCalloutState.anchorDropActive === true &&
+      trafficProfile?.current &&
+      trafficProfile.current !== "anchor"
+    ) {
+      depthCalloutState = {
+        ...depthCalloutState,
+        anchorDropActive: false,
       };
     }
   }
@@ -913,6 +949,7 @@ function createDepthCalloutState() {
     lastAnnouncedAt: null,
     lastAnnouncement: null,
     lastAnchorDrop: null,
+    anchorDropActive: false,
     activeNotificationId: null,
     notificationClearsAt: null,
     lastClearedAt: null,

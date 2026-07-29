@@ -290,9 +290,7 @@ function renderDepthCalloutStatus(value) {
     : "";
   const hasDepth = Number.isFinite(Number(value.lastDepthMeters));
   elements.anchorDropped.disabled = anchorDropInProgress || !hasDepth;
-  elements.anchorDropped.textContent = lastAnnouncement.startsWith("Anchor dropped")
-    ? "Mark anchor dropped again"
-    : "Anchor dropped";
+  elements.anchorDropped.textContent = value.anchorDropActive === true ? "Anchor Dropped" : "Drop Anchor";
 }
 
 function lastAnnouncementMessage(value) {
@@ -319,7 +317,7 @@ async function markAnchorDropped() {
   if (anchorDropInProgress) return;
   anchorDropInProgress = true;
   elements.anchorDropped.disabled = true;
-  elements.anchorDropped.textContent = "Marking anchor...";
+  elements.anchorDropped.textContent = "Dropping anchor...";
   try {
     const result = await postJson(`${API}/depth-callout/drop`, {});
     setMessage(anchorDropMessage(result));
