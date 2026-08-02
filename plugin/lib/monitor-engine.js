@@ -34,7 +34,8 @@ function convertValue(rawValue, monitor = {}) {
 
   const scale = finiteNumber(monitor.scale) ?? 1;
   const offset = finiteNumber(monitor.offset) ?? 0;
-  return converted * scale + offset;
+  const adjusted = converted * scale + offset;
+  return monitor.absoluteValue === true ? Math.abs(adjusted) : adjusted;
 }
 
 function unwrapSignalKValue(value) {

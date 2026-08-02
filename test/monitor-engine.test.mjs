@@ -26,6 +26,47 @@ test("converts common Signal K units", () => {
   assert.equal(Math.round(convertValue(289.75, { conversion: "kelvinToCelsius" }) * 10) / 10, 16.6);
   assert.equal(Math.round(convertValue(5, { conversion: "metersPerSecondToKnots" }) * 10) / 10, 9.7);
   assert.equal(convertValue(Math.PI, { conversion: "radiansToDegrees" }), 180);
+  assert.ok(
+    Math.abs(convertValue(-Math.PI / 12, {
+      conversion: "radiansToDegrees",
+      absoluteValue: true,
+    }) - 15) < 1e-9,
+  );
+});
+
+test("absolute-value monitoring applies the same maximum threshold to both signs", () => {
+  const monitor = {
+    id: "pilot-helm",
+    label: "Pilot helm",
+    path: "plugins.ajrmMarineInstruments.pilotHelmAngle",
+    unit: "degrees",
+    conversion: "radiansToDegrees",
+    absoluteValue: true,
+    enabled: true,
+    levels: {
+      danger: { enabled: true, maximum: 12, repeatSeconds: 15 },
+      warning: { enabled: false, repeatSeconds: 60 },
+      information: { enabled: false, repeatSeconds: 300 },
+    },
+  };
+
+  const port = evaluateMonitor({
+    monitor,
+    rawValue: -15 * Math.PI / 180,
+    timestamp: Date.parse("2026-08-02T12:00:00Z"),
+    state: createMonitorState(),
+  });
+  const starboard = evaluateMonitor({
+    monitor,
+    rawValue: 15 * Math.PI / 180,
+    timestamp: Date.parse("2026-08-02T12:01:00Z"),
+    state: createMonitorState(),
+  });
+
+  assert.equal(port.event?.level, "danger");
+  assert.ok(Math.abs(port.event?.value - 15) < 1e-9);
+  assert.equal(starboard.event?.level, "danger");
+  assert.ok(Math.abs(starboard.event?.value - 15) < 1e-9);
 });
 
 test("selects the highest matching depth severity", () => {

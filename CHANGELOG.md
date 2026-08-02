@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add a saved **Monitor absolute value** option so magnitude-based alarms can
+  use one positive threshold for equal negative and positive readings.
+
 ## 0.6.3
 
 - Make the test command portable to Node 20 on ARMv7 by allowing the shell to

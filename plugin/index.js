@@ -163,6 +163,12 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
             },
             scale: { type: "number", title: "Additional scale", default: 1 },
             offset: { type: "number", title: "Additional offset", default: 0 },
+            absoluteValue: {
+              type: "boolean",
+              title: "Monitor absolute value",
+              description: "Treat equal positive and negative values as the same magnitude.",
+              default: false,
+            },
             decimals: {
               type: "integer",
               title: "Spoken/display decimal places",
@@ -341,6 +347,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         : "none",
       scale: finiteOr(value?.scale, 1),
       offset: finiteOr(value?.offset, 0),
+      absoluteValue: value?.absoluteValue === true,
       decimals: clampInteger(value?.decimals, 1, 0, 4),
       enabled: value?.enabled !== false,
       rateWindowSeconds: clampInteger(value?.rateWindowSeconds, 60, 10, 3600),
