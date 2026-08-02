@@ -2,6 +2,9 @@
 
 ## Version 1 baseline
 
+`v0.6.4` adds absolute-value monitoring so a single positive threshold can
+cover equal port and starboard pilot-helm deflection.
+
 `v0.6.3` includes the same anchor-button lifecycle and makes its test command
 portable to Node 20 on ARMv7/Cerbo-class systems.
 
@@ -86,7 +89,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.3 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.4 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.4
 
 - Add a saved **Monitor absolute value** option so magnitude-based alarms can
   use one positive threshold for equal negative and positive readings.
