@@ -60,10 +60,15 @@ button:disabled { box-shadow: none; opacity: .55; cursor: default; transform: no
 .identity-fields { grid-template-columns: 1fr 2fr 1fr 1fr; }
 .tuning-fields { grid-template-columns: repeat(4, 1fr); margin: 14px 0; }
 label { color: var(--muted); font-size: .84rem; }
+.field-label { display: inline-flex; align-items: center; gap: 6px; }
+.help-tip { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 1px solid #5b7d86; border-radius: 50%; color: #d5f4ed; background: #17343d; font-size: .72rem; font-weight: 900; line-height: 1; cursor: help; user-select: none; }
+.help-tip:hover, .help-tip:focus-visible { color: #052019; background: var(--accent); border-color: #7ee8d4; outline: 2px solid var(--warning); outline-offset: 2px; }
 input, select { width: 100%; margin-top: 5px; border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; background: #09191f; color: #eefbf7; font: inherit; }
 input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .live-reading { margin: 16px 0 4px; flex-wrap: wrap; }
 .live-value { font-size: 1.5rem; color: var(--accent); }
+.live-rate[title] { cursor: help; border-bottom: 1px dotted #5b7d86; }
+.live-rate[title]:focus-visible { color: #d5f4ed; outline: 2px solid var(--warning); outline-offset: 3px; }
 .rule-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
 .rule-row { min-width: 770px; display: grid; grid-template-columns: 1.5fr repeat(5, 1fr); gap: 8px; align-items: center; padding: 8px; border-top: 1px solid var(--line); }
 .rule-row:first-child { border-top: 0; }

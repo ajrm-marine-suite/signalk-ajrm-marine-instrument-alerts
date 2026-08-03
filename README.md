@@ -2,6 +2,9 @@
 
 ## Version 1 baseline
 
+`v0.6.6` adds hover and keyboard-focus help to the live rate readout and all
+four rate-tuning fields, including practical suggested starting values.
+
 `v0.6.5` adds a built-in nullable Cross Track Error monitor for the normalized
 Instruments XTE path. It uses absolute metres, stays inactive while XTE is null,
 and is disabled by default until the skipper chooses appropriate limits.
@@ -69,6 +72,13 @@ Each monitored Signal K path can have independent **Information**, **Warning**, 
   cover equal-magnitude negative and positive readings such as port and
   starboard pilot helm position.
 
+The web app's four rate-tuning fields have hover/focus help with suggested
+starting values. As a general baseline, use a 60-second rate window and a
+10-second minimum sample. Value hysteresis is expressed in the displayed unit
+(for example 0.2 m depth, 1 °C temperature, or 5 m XTE). Rate hysteresis is in
+displayed units per minute; start near 10% of the configured Rise/min or
+Fall/min threshold, or leave it at zero when no rate rule is used.
+
 The Signal K plugin configuration supplies startup defaults. The AJRM Marine Instrument Alerts web app can add, remove, enable, and tune monitors while the plugin is running. Web changes are persisted in `ajrm-marine-instrument-alerts-settings.json` in the plugin data directory and take precedence over startup defaults.
 
 For compatibility with other Signal K applications, each active monitor publishes the standard notification fields `state`, `method`, and `message`. The notification path mirrors the monitored source path where possible, for example:
@@ -99,7 +109,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.5 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.6 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

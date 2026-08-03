@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.6
+
+- Add hover and keyboard-focus help to the four rate-tuning controls, explaining
+  their effect and giving practical suggested starting values.
+
 ## 0.6.5
 
 - Add a built-in absolute-value Cross Track Error monitor for the normalized
