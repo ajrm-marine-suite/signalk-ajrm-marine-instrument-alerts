@@ -69,6 +69,49 @@ test("absolute-value monitoring applies the same maximum threshold to both signs
   assert.ok(Math.abs(starboard.event?.value - 15) < 1e-9);
 });
 
+test("a missing XTE value cannot activate an alert and clears an active alert", () => {
+  const monitor = {
+    id: "cross-track-error",
+    label: "Cross track error",
+    path: "plugins.ajrmMarineInstruments.crossTrackError",
+    unit: "metres",
+    absoluteValue: true,
+    enabled: true,
+    levels: {
+      danger: { enabled: true, maximum: 100, repeatSeconds: 15 },
+      warning: { enabled: true, maximum: 50, repeatSeconds: 60 },
+      information: { enabled: true, maximum: 25, repeatSeconds: 300 },
+    },
+  };
+
+  let result = evaluateMonitor({
+    monitor,
+    rawValue: null,
+    timestamp: 1000,
+    state: createMonitorState(),
+  });
+  assert.equal(result.state.activeLevel, null);
+  assert.equal(result.event, null);
+
+  result = evaluateMonitor({
+    monitor,
+    rawValue: -55,
+    timestamp: 2000,
+    state: result.state,
+  });
+  assert.equal(result.state.activeLevel, "warning");
+
+  result = evaluateMonitor({
+    monitor,
+    rawValue: null,
+    timestamp: 3000,
+    state: result.state,
+  });
+  assert.equal(result.state.activeLevel, null);
+  assert.equal(result.event, null);
+  assert.equal(result.cleared, true);
+});
+
 test("selects the highest matching depth severity", () => {
   let result = evaluateMonitor({
     monitor: depthMonitor,

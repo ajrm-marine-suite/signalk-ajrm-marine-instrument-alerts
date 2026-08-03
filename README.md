@@ -2,6 +2,10 @@
 
 ## Version 1 baseline
 
+`v0.6.5` adds a built-in nullable Cross Track Error monitor for the normalized
+Instruments XTE path. It uses absolute metres, stays inactive while XTE is null,
+and is disabled by default until the skipper chooses appropriate limits.
+
 `v0.6.4` adds absolute-value monitoring so a single positive threshold can
 cover equal port and starboard pilot-helm deflection.
 
@@ -80,6 +84,12 @@ Information maps to Signal K `alert`, Warning maps to `warn`, and Danger maps to
 
 - **Depth below keel** is enabled, with Information at 5 m, Warning at 3 m, and Danger at 2 m.
 - **Engine room temperature** is included but disabled until its path and limits are checked for the vessel. It demonstrates absolute temperature and degrees-per-minute rise triggers.
+- **Cross track error** monitors the normalized nullable Instruments path in
+  metres using absolute magnitude. It is included with editable 25/50/100 m
+  Information/Warning/Danger examples but is disabled by default so the
+  skipper can choose limits appropriate to the route and operating area. A
+  missing or null XTE never activates the monitor and immediately clears an
+  existing XTE condition.
 
 Signal K stores temperatures in Kelvin, speed in metres per second, and angles in radians. The web app provides common conversions to Celsius, knots, and degrees, plus optional scale and offset fields in the saved model.
 
@@ -89,7 +99,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.4 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.5 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

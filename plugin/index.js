@@ -22,6 +22,7 @@ const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const DEPTH_CALLOUT_NOTIFICATION_PATH =
   "notifications.environment.depth.callout";
 const DEPTH_CALLOUT_CLEAR_MILLISECONDS = 30_000;
+const XTE_MONITOR_PATH = "plugins.ajrmMarineInstruments.crossTrackError";
 const LEVEL_SCHEMA = {
   type: "object",
   properties: {
@@ -62,6 +63,26 @@ function levelSchema(title) {
   };
 }
 
+const DEFAULT_XTE_MONITOR = {
+  id: "cross-track-error",
+  label: "Cross track error",
+  path: XTE_MONITOR_PATH,
+  unit: "metres",
+  conversion: "none",
+  absoluteValue: true,
+  decimals: 1,
+  enabled: false,
+  rateWindowSeconds: 60,
+  minimumRateSampleSeconds: 10,
+  hysteresis: 5,
+  rateHysteresisPerMinute: 0,
+  levels: {
+    information: { enabled: true, maximum: 25, repeatSeconds: 300 },
+    warning: { enabled: true, maximum: 50, repeatSeconds: 60 },
+    danger: { enabled: true, maximum: 100, repeatSeconds: 15 },
+  },
+};
+
 const DEFAULT_MONITORS = [
   {
     id: "depth-below-keel",
@@ -99,6 +120,7 @@ const DEFAULT_MONITORS = [
       danger: { enabled: true, maximum: 90, risePerMinute: 4, repeatSeconds: 15 },
     },
   },
+  DEFAULT_XTE_MONITOR,
 ];
 
 const DEFAULT_DEPTH_CALLOUT = {
@@ -321,13 +343,21 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   return plugin;
 
   function normalizeOptions(value) {
-    const monitors = Array.isArray(value.monitors) ? value.monitors : DEFAULT_MONITORS;
+    const configuredMonitors = Array.isArray(value.monitors) ? value.monitors : DEFAULT_MONITORS;
+    const monitors = includeXteMonitor(configuredMonitors);
     const normalized = monitors.map(normalizeMonitor).filter((monitor) => monitor.path);
     return {
       enabled: value.enabled === true,
       monitors: uniqueMonitorIds(normalized),
       depthCallout: normalizeDepthCallout(value.depthCallout),
     };
+  }
+
+  function includeXteMonitor(monitors) {
+    const present = monitors.some((monitor) =>
+      monitor?.id === DEFAULT_XTE_MONITOR.id || monitor?.path === XTE_MONITOR_PATH
+    );
+    return present ? monitors : [...monitors, DEFAULT_XTE_MONITOR];
   }
 
   function normalizeMonitor(value, index) {

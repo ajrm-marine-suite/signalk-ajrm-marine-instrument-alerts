@@ -170,12 +170,44 @@ test("status advertises anchoring depth callout capability", () => {
   assert.equal(status.depthCallout.audio, true);
   assert.equal(status.depthCallout.active, false);
   assert.equal(status.enabled, false);
+  const xte = status.monitors.find((monitor) => monitor.id === "cross-track-error");
+  assert.equal(xte.path, "plugins.ajrmMarineInstruments.crossTrackError");
+  assert.equal(xte.absoluteValue, true);
+  assert.equal(xte.enabled, false);
   const projection = messages.find((message) =>
     message.updates?.[0]?.values?.[0]?.path === "plugins.ajrmMarineInstrumentAlerts"
   ).updates[0].values[0];
   assert.equal(projection.value.enabled, false);
   assert.equal(projection.value.depthCallout.supported, true);
   assert.equal(projection.value.depthCallout.audio, true);
+});
+
+test("adds the built-in nullable XTE monitor to existing monitor settings", () => {
+  let settings = null;
+  const app = {
+    subscriptionmanager: { subscribe(_request, unsubscribes) { unsubscribes.push(() => {}); } },
+    getSelfPath() { return null; },
+    getDataDirPath() { return null; },
+    handleMessage() {},
+    setPluginStatus() {},
+    error() {},
+  };
+  const plugin = ajrmMarineInstrumentAlerts(app);
+  plugin.start({
+    monitors: [{ id: "custom", label: "Custom", path: "environment.custom" }],
+  });
+  plugin.registerWithRouter({
+    get(route, handler) {
+      if (route === "/settings") handler({}, { json(value) { settings = value; } });
+    },
+    put() {},
+    post() {},
+  });
+
+  assert.deepEqual(settings.monitors.map((monitor) => monitor.id), [
+    "custom",
+    "cross-track-error",
+  ]);
 });
 
 test("plugin startup clears a callout retained by an older release", () => {

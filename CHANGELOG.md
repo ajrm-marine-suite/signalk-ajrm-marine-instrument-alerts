@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.5
+
+- Add a built-in absolute-value Cross Track Error monitor for the normalized
+  nullable Instruments XTE path. It remains inactive for missing/null values
+  and clears immediately when XTE becomes null.
+- Add the disabled XTE default to existing monitor collections without
+  changing or enabling users' other saved monitor rules.
+
 ## 0.6.4
 
 - Add a saved **Monitor absolute value** option so magnitude-based alarms can
