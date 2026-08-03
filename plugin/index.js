@@ -69,6 +69,7 @@ const DEFAULT_XTE_MONITOR = {
   path: XTE_MONITOR_PATH,
   unit: "metres",
   conversion: "none",
+  directionMode: "portStarboard",
   absoluteValue: true,
   decimals: 1,
   enabled: false,
@@ -181,6 +182,13 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
               type: "string",
               title: "Signal K unit conversion",
               enum: ["none", "kelvinToCelsius", "metersPerSecondToKnots", "radiansToDegrees"],
+              default: "none",
+            },
+            directionMode: {
+              type: "string",
+              title: "Direction wording",
+              description: "Optionally append Port or Starboard from the signed value.",
+              enum: ["none", "portStarboard"],
               default: "none",
             },
             scale: { type: "number", title: "Additional scale", default: 1 },
@@ -375,6 +383,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       ].includes(value?.conversion)
         ? value.conversion
         : "none",
+      directionMode: normalizeDirectionMode(value, id),
       scale: finiteOr(value?.scale, 1),
       offset: finiteOr(value?.offset, 0),
       absoluteValue: value?.absoluteValue === true,
@@ -395,6 +404,16 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         danger: normalizeLevel(value?.levels?.danger, 15),
       },
     };
+  }
+
+  function normalizeDirectionMode(value, id) {
+    if (["none", "portStarboard"].includes(value?.directionMode)) {
+      return value.directionMode;
+    }
+    if (id === DEFAULT_XTE_MONITOR.id || value?.path === XTE_MONITOR_PATH) {
+      return "portStarboard";
+    }
+    return "none";
   }
 
   function normalizeLevel(value, defaultRepeatSeconds) {

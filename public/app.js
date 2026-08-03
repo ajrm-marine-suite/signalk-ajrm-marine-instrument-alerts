@@ -104,6 +104,7 @@ function renderSettings() {
     setField(card, "path", monitor.path);
     setField(card, "unit", monitor.unit);
     setField(card, "conversion", monitor.conversion || "none");
+    setField(card, "directionMode", monitor.directionMode || "none");
     setField(card, "absoluteValue", monitor.absoluteValue === true);
     setField(card, "rateWindowSeconds", monitor.rateWindowSeconds ?? 60);
     setField(card, "minimumRateSampleSeconds", monitor.minimumRateSampleSeconds ?? 10);
@@ -219,6 +220,7 @@ function readSettingsFromPage() {
         path,
         unit: readField(card, "unit").trim(),
         conversion: readField(card, "conversion"),
+        directionMode: readField(card, "directionMode"),
         absoluteValue: readChecked(card, "absoluteValue"),
         rateWindowSeconds: readNumber(card, "rateWindowSeconds"),
         minimumRateSampleSeconds: readNumber(card, "minimumRateSampleSeconds"),
@@ -353,6 +355,7 @@ function blankMonitor(number) {
     path: "",
     unit: "",
     conversion: "none",
+    directionMode: "none",
     absoluteValue: false,
     enabled: true,
     rateWindowSeconds: 60,

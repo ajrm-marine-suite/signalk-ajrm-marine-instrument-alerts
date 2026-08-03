@@ -2,6 +2,10 @@
 
 ## Version 1 baseline
 
+`v0.6.7` adds configurable Port/Starboard direction wording for signed
+instrument alerts. The built-in XTE monitor speaks the direction while using
+absolute metres for its thresholds.
+
 `v0.6.6` adds hover and keyboard-focus help to the live rate readout and all
 four rate-tuning fields, including practical suggested starting values.
 
@@ -99,7 +103,13 @@ Information maps to Signal K `alert`, Warning maps to `warn`, and Danger maps to
   Information/Warning/Danger examples but is disabled by default so the
   skipper can choose limits appropriate to the route and operating area. A
   missing or null XTE never activates the monitor and immediately clears an
-  existing XTE condition.
+  existing XTE condition. Its **Direction wording** is set to **Port / Starboard**,
+  so the signed source selects announcements such as “55.0 metres to Port” or
+  “55.0 metres to Starboard” while thresholds continue to use absolute metres.
+
+The **Unit** field remains the static measurement unit. Use the separate
+**Direction wording** selector when a signed value needs Port/Starboard speech;
+this keeps unit configuration independent from directional semantics.
 
 Signal K stores temperatures in Kelvin, speed in metres per second, and angles in radians. The web app provides common conversions to Celsius, knots, and degrees, plus optional scale and offset fields in the saved model.
 
@@ -109,7 +119,7 @@ After the repository has been created and tagged:
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.6 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.7 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

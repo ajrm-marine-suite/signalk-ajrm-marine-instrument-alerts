@@ -14,8 +14,12 @@ function finiteNumber(value) {
 }
 
 function convertValue(rawValue, monitor = {}) {
+  return convertValueDetails(rawValue, monitor).value;
+}
+
+function convertValueDetails(rawValue, monitor = {}) {
   const raw = finiteNumber(unwrapSignalKValue(rawValue));
-  if (raw == null) return null;
+  if (raw == null) return { value: null, signedValue: null };
 
   let converted = raw;
   switch (monitor.conversion) {
@@ -35,7 +39,10 @@ function convertValue(rawValue, monitor = {}) {
   const scale = finiteNumber(monitor.scale) ?? 1;
   const offset = finiteNumber(monitor.offset) ?? 0;
   const adjusted = converted * scale + offset;
-  return monitor.absoluteValue === true ? Math.abs(adjusted) : adjusted;
+  return {
+    value: monitor.absoluteValue === true ? Math.abs(adjusted) : adjusted,
+    signedValue: adjusted,
+  };
 }
 
 function unwrapSignalKValue(value) {
@@ -50,6 +57,7 @@ function createMonitorState() {
     samples: [],
     activeLevel: null,
     activeReason: null,
+    activeDirection: null,
     activeSince: null,
     lastAnnouncedAt: null,
     lastValue: null,
@@ -60,13 +68,15 @@ function createMonitorState() {
 
 function evaluateMonitor({ monitor, rawValue, timestamp = Date.now(), state } = {}) {
   const current = state || createMonitorState();
-  const value = convertValue(rawValue, monitor);
+  const converted = convertValueDetails(rawValue, monitor);
+  const value = converted.value;
   if (value == null || monitor?.enabled === false) {
     return {
       state: {
         ...current,
         activeLevel: null,
         activeReason: null,
+        activeDirection: null,
         activeSince: null,
         lastValue: value,
         updatedAt: new Date(timestamp).toISOString(),
@@ -89,18 +99,25 @@ function evaluateMonitor({ monitor, rawValue, timestamp = Date.now(), state } = 
       : standardMatch;
   const activeLevel = heldMatch?.level || null;
   const activeReason = heldMatch?.reason || null;
+  const activeDirection = activeLevel
+    ? directionPhrase(monitor, converted.signedValue)
+    : null;
   const changed = activeLevel !== current.activeLevel;
+  const directionChanged = Boolean(
+    activeLevel && activeDirection && activeDirection !== current.activeDirection,
+  );
   const repeatSeconds = repeatForLevel(monitor, activeLevel);
   const repeatDue =
     activeLevel &&
     current.lastAnnouncedAt != null &&
     timestamp - current.lastAnnouncedAt >= repeatSeconds * 1000;
-  const shouldAnnounce = Boolean(activeLevel && (changed || repeatDue));
+  const shouldAnnounce = Boolean(activeLevel && (changed || directionChanged || repeatDue));
 
   const nextState = {
     samples,
     activeLevel,
     activeReason,
+    activeDirection,
     activeSince: activeLevel
       ? changed
         ? new Date(timestamp).toISOString()
@@ -115,7 +132,15 @@ function evaluateMonitor({ monitor, rawValue, timestamp = Date.now(), state } = 
   return {
     state: nextState,
     event: shouldAnnounce
-      ? buildAnnouncementEvent(monitor, activeLevel, activeReason, value, ratePerMinute, timestamp)
+      ? buildAnnouncementEvent(
+        monitor,
+        activeLevel,
+        activeReason,
+        value,
+        ratePerMinute,
+        timestamp,
+        converted.signedValue,
+      )
       : null,
     cleared: current.activeLevel != null && activeLevel == null,
   };
@@ -187,19 +212,28 @@ function repeatForLevel(monitor, level) {
   );
 }
 
-function buildAnnouncementEvent(monitor, level, reason, value, ratePerMinute, timestamp) {
+function buildAnnouncementEvent(
+  monitor,
+  level,
+  reason,
+  value,
+  ratePerMinute,
+  timestamp,
+  signedValue = value,
+) {
   const label = String(monitor?.label || monitor?.path || "Instrument").trim();
   const unit = String(monitor?.unit || "").trim();
   const decimals = clampInteger(monitor?.decimals, 1, 0, 4);
   const spokenValue = value.toFixed(decimals);
-  const valueWithUnit = `${spokenValue}${unit ? ` ${unit}` : ""}`;
+  const direction = directionPhrase(monitor, signedValue);
+  const valueWithUnit = `${spokenValue}${unit ? ` ${unit}` : ""}${direction ? ` ${direction}` : ""}`;
   const levelLabel =
     level === "danger" ? "Danger" : level === "warning" ? "Warning" : "Information";
   let detail = valueWithUnit;
   if (reason === "risePerMinute") {
-    detail = `rising at ${Math.abs(ratePerMinute).toFixed(decimals)}${unit ? ` ${unit}` : ""} per minute`;
+    detail = `rising at ${Math.abs(ratePerMinute).toFixed(decimals)}${unit ? ` ${unit}` : ""} per minute${direction ? `, currently ${direction}` : ""}`;
   } else if (reason === "fallPerMinute") {
-    detail = `falling at ${Math.abs(ratePerMinute).toFixed(decimals)}${unit ? ` ${unit}` : ""} per minute`;
+    detail = `falling at ${Math.abs(ratePerMinute).toFixed(decimals)}${unit ? ` ${unit}` : ""} per minute${direction ? `, currently ${direction}` : ""}`;
   }
 
   return {
@@ -211,10 +245,21 @@ function buildAnnouncementEvent(monitor, level, reason, value, ratePerMinute, ti
     level,
     reason,
     value,
+    signedValue,
+    direction,
     unit,
     ratePerMinute,
     message: `${levelLabel}. ${label} ${detail}.`,
   };
+}
+
+function directionPhrase(monitor, signedValue) {
+  if (monitor?.directionMode !== "portStarboard") return "";
+  const number = finiteNumber(signedValue);
+  if (number == null) return "";
+  if (number < 0) return "to Port";
+  if (number > 0) return "to Starboard";
+  return "on track";
 }
 
 function safeId(value) {
@@ -243,8 +288,10 @@ module.exports = {
   buildAnnouncementEvent,
   calculateRatePerMinute,
   convertValue,
+  convertValueDetails,
   createMonitorState,
   evaluateMonitor,
+  directionPhrase,
   repeatForLevel,
   safeId,
 };

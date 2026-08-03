@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.7
+
+- Add configurable Port/Starboard direction wording. The built-in XTE monitor
+  retains the signed source value for speech while applying absolute magnitude
+  to its thresholds.
+
 ## 0.6.6
 
 - Add hover and keyboard-focus help to the four rate-tuning controls, explaining

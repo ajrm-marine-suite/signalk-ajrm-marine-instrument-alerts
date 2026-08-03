@@ -173,6 +173,7 @@ test("status advertises anchoring depth callout capability", () => {
   const xte = status.monitors.find((monitor) => monitor.id === "cross-track-error");
   assert.equal(xte.path, "plugins.ajrmMarineInstruments.crossTrackError");
   assert.equal(xte.absoluteValue, true);
+  assert.equal(xte.directionMode, "portStarboard");
   assert.equal(xte.enabled, false);
   const projection = messages.find((message) =>
     message.updates?.[0]?.values?.[0]?.path === "plugins.ajrmMarineInstrumentAlerts"

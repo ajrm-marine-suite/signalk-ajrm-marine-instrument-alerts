@@ -42,6 +42,7 @@ test("absolute-value monitoring applies the same maximum threshold to both signs
     unit: "degrees",
     conversion: "radiansToDegrees",
     absoluteValue: true,
+    directionMode: "portStarboard",
     enabled: true,
     levels: {
       danger: { enabled: true, maximum: 12, repeatSeconds: 15 },
@@ -65,8 +66,45 @@ test("absolute-value monitoring applies the same maximum threshold to both signs
 
   assert.equal(port.event?.level, "danger");
   assert.ok(Math.abs(port.event?.value - 15) < 1e-9);
+  assert.ok(Math.abs(port.event?.signedValue + 15) < 1e-9);
+  assert.equal(port.event?.direction, "to Port");
+  assert.match(port.event?.message, /15\.0 degrees to Port/);
   assert.equal(starboard.event?.level, "danger");
   assert.ok(Math.abs(starboard.event?.value - 15) < 1e-9);
+  assert.equal(starboard.event?.direction, "to Starboard");
+  assert.match(starboard.event?.message, /15\.0 degrees to Starboard/);
+});
+
+test("an active Port-to-Starboard XTE change announces immediately", () => {
+  const monitor = {
+    id: "cross-track-error",
+    label: "Cross track error",
+    unit: "metres",
+    absoluteValue: true,
+    directionMode: "portStarboard",
+    levels: {
+      danger: { enabled: false },
+      warning: { enabled: true, maximum: 50, repeatSeconds: 300 },
+      information: { enabled: false },
+    },
+  };
+
+  let result = evaluateMonitor({
+    monitor,
+    rawValue: -55,
+    timestamp: 1000,
+    state: createMonitorState(),
+  });
+  assert.match(result.event?.message, /55\.0 metres to Port/);
+
+  result = evaluateMonitor({
+    monitor,
+    rawValue: 55,
+    timestamp: 2000,
+    state: result.state,
+  });
+  assert.match(result.event?.message, /55\.0 metres to Starboard/);
+  assert.equal(result.state.activeDirection, "to Starboard");
 });
 
 test("a missing XTE value cannot activate an alert and clears an active alert", () => {

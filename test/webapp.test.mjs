@@ -11,6 +11,10 @@ test("web app exposes and persists absolute-value monitoring", async () => {
   assert.match(html, /data-field="absoluteValue" type="checkbox"/);
   assert.match(app, /setField\(card, "absoluteValue", monitor\.absoluteValue === true\)/);
   assert.match(app, /absoluteValue: readChecked\(card, "absoluteValue"\)/);
+  assert.match(html, /data-field="directionMode"/);
+  assert.match(html, /value="portStarboard">Port \/ Starboard/);
+  assert.match(app, /setField\(card, "directionMode", monitor\.directionMode \|\| "none"\)/);
+  assert.match(app, /directionMode: readField\(card, "directionMode"\)/);
 });
 
 test("rate tuning fields provide hover help and suggested starting values", async () => {
