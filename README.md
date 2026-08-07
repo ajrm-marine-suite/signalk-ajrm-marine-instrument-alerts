@@ -2,41 +2,11 @@
 
 ## Current release
 
-`v0.6.7` adds configurable Port/Starboard direction wording for signed
-instrument alerts. The built-in XTE monitor speaks the direction while using
-absolute metres for its thresholds.
-
-`v0.6.6` adds hover and keyboard-focus help to the live rate readout and all
-four rate-tuning fields, including practical suggested starting values.
-
-`v0.6.5` adds a built-in nullable Cross Track Error monitor for the normalized
-Instruments XTE path. It uses absolute metres, stays inactive while XTE is null,
-and is disabled by default until the skipper chooses appropriate limits.
-
-`v0.6.4` adds absolute-value monitoring so a single positive threshold can
-cover equal port and starboard pilot-helm deflection.
-
-`v0.6.3` includes the same anchor-button lifecycle and makes its test command
-portable to Node 20 on ARMv7/Cerbo-class systems.
-
-`v0.6.2` labels the anchoring action **Drop Anchor** initially and
-**Anchor Dropped** after it succeeds. The button resets to **Drop Anchor** when
-AJRM Marine Traffic explicitly reports a profile other than Anchor.
-
-`v0.6.1` makes anchoring depth callouts and **Anchor dropped** one-shot events.
-The newest callout supersedes an older queued depth, clears from the retained
-Signal K notification after 30 seconds, and clears sooner in safely deeper
-water. The separate configured shallow-depth alarm keeps its own threshold and
-hysteresis lifecycle.
-
-`v0.5.7` publishes Instrument Alerts status under
-`vessels.self.plugins.ajrmMarineInstrumentAlerts` so Console BITE, Capture, and
-Snapshot can verify depth-callout capability from captured Signal K state.
-
-`v0.5.6` adds the first server-side anchoring depth callout capability. It is
-off by default and reads the configured depth path only when enabled, announcing
-depth changes only inside the configured anchoring target depth band.
-The status endpoint advertises the capability for BITE and future UI controls.
+Version 0.7.0 is the reviewed provider baseline before this functionality moves
+into AJRM Marine Instruments. It declares its API and supported Node runtime,
+protects state-changing controls with Signal K access permissions, makes
+restart/stop lifecycle handling explicit, and removes the obsolete migration
+from the pre-suite Audible Instruments settings filename.
 
 Depth callouts and **Anchor dropped** are one-shot events, not continuing
 shallow-water alarms. The temporary notification at
@@ -51,14 +21,6 @@ Danger threshold, its notification at
 `notifications.environment.depth.belowKeel` remains active until that
 threshold clears with the monitor's own hysteresis. Clearing a one-shot
 callout never hides a continuing shallow-depth condition.
-
-`v0.5.0` promotes the current configurable instrument and rate-of-change
-notification provider as the working baseline. It remains provider-owned policy
-published through standard Signal K notifications and does not intentionally
-change runtime behavior from `v0.5.0`.
-
-`v0.5.0` adds provider session, source sequence, and end-to-end correlation
-identifiers without changing monitor thresholds or delivery behavior.
 
 > **Alpha Release disclaimer:** This software is Alpha Release and has not been tested in live environments and must not be relied upon for navigation or safety. The Authors do not accept any responsibility for loss or damage as a result of using this software.
 
@@ -117,7 +79,7 @@ Signal K stores temperatures in Kelvin, speed in metres per second, and angles i
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.8 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.7.0 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

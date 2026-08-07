@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const packageInfo = require("../package.json");
+const openApi = require("./openApi.json");
 const {
   createMonitorState,
   evaluateMonitor,
@@ -16,7 +17,6 @@ const {
 
 const PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";
 const SETTINGS_FILE = "ajrm-marine-instrument-alerts-settings.json";
-const PREVIOUS_SETTINGS_FILE = "audible-instruments-settings.json";
 const NOTIFICATION_ROOT = "notifications.ajrmMarineInstrumentAlerts";
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const DEPTH_CALLOUT_NOTIFICATION_PATH =
@@ -150,6 +150,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   let recentEvents = [];
   let depthCalloutState = createDepthCalloutState();
   let depthCalloutClearTimer = null;
+  let running = false;
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine Instrument Alerts";
@@ -265,6 +266,8 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   };
 
   plugin.start = (pluginOptions = {}) => {
+    shutdownRuntime({ clearNotifications: running });
+    running = true;
     resetProviderSession();
     options = normalizeOptions({
       ...pluginOptions,
@@ -281,8 +284,8 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   };
 
   plugin.stop = () => {
-    unsubscribeAll();
-    clearPublishedNotifications();
+    shutdownRuntime({ clearNotifications: true });
+    app.setPluginStatus?.("Stopped");
   };
 
   plugin.registerWithRouter = (router) => {
@@ -294,7 +297,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       res.json(settingsResponse());
     });
 
-    router.put("/settings", (req, res) => {
+    router.put("/settings", requireWriteAccess((req, res) => {
       try {
         const next = normalizeOptions(req.body || {});
         unsubscribeAll();
@@ -311,9 +314,9 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
         app.error(`[${PLUGIN_ID}] settings error: ${error.stack || error.message}`);
         res.status(400).json({ ok: false, error: error.message });
       }
-    });
+    }));
 
-    router.post("/depth-callout/drop", (_req, res) => {
+    router.post("/depth-callout/drop", requireWriteAccess((_req, res) => {
       const depth = depthCalloutState.lastDepthMeters;
       if (!Number.isFinite(depth)) {
         res.status(409).json({ ok: false, error: "No recent depth is available." });
@@ -345,8 +348,10 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       };
       publishStatusProjection();
       res.json({ ok: true, depthMeters: depth, trafficProfile });
-    });
+    }));
   };
+
+  plugin.getOpenApi = () => openApi;
 
   return plugin;
 
@@ -494,6 +499,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   }
 
   function handleDelta(delta) {
+    if (!running) return;
     const fallbackTimestamp = Date.now();
     for (const update of delta?.updates || []) {
       const timestamp = Date.parse(update.timestamp) || fallbackTimestamp;
@@ -723,6 +729,7 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       notificationClearsAt: clearsAt,
     };
     depthCalloutClearTimer = setTimeout(() => {
+      if (!running) return;
       depthCalloutClearTimer = null;
       clearDepthCalloutNotification("expired", eventId);
       publishStatusProjection();
@@ -814,6 +821,34 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
       }
     }
     unsubscribes = [];
+  }
+
+  function shutdownRuntime({ clearNotifications }) {
+    if (clearNotifications) clearPublishedNotifications();
+    running = false;
+    unsubscribeAll();
+    if (depthCalloutClearTimer) {
+      clearTimeout(depthCalloutClearTimer);
+      depthCalloutClearTimer = null;
+    }
+  }
+
+  function requireWriteAccess(handler) {
+    return function writeAccessHandler(req, res) {
+      const permission = req.skPrincipal?.permissions;
+      if (
+        permission === "admin" ||
+        permission === "readwrite" ||
+        (permission === undefined && req.skIsAuthenticated !== false)
+      ) {
+        return handler(req, res);
+      }
+      res.status(403).json({
+        ok: false,
+        error: "Instrument Alert controls require Signal K read/write or admin access.",
+      });
+      return undefined;
+    };
   }
 
   function settingsResponse() {
@@ -956,7 +991,6 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   function loadRuntimeSettings() {
     try {
       const filePath = settingsFilePath();
-      migratePreviousSettingsFile();
       if (!filePath || !fs.existsSync(filePath)) return {};
       return JSON.parse(fs.readFileSync(filePath, "utf8"));
     } catch (error) {
@@ -975,16 +1009,6 @@ module.exports = function ajrmMarineInstrumentAlerts(app) {
   function settingsFilePath() {
     if (typeof app.getDataDirPath !== "function") return null;
     return path.join(app.getDataDirPath(), SETTINGS_FILE);
-  }
-
-  function migratePreviousSettingsFile() {
-    if (typeof app.getDataDirPath !== "function") return;
-    const directory = app.getDataDirPath();
-    const currentPath = path.join(directory, SETTINGS_FILE);
-    const previousPath = path.join(directory, PREVIOUS_SETTINGS_FILE);
-    if (fs.existsSync(currentPath) || !fs.existsSync(previousPath)) return;
-    fs.mkdirSync(path.dirname(currentPath), { recursive: true });
-    fs.copyFileSync(previousPath, currentPath);
   }
 };
 

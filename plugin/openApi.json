@@ -1,0 +1,51 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AJRM Marine Instrument Alerts API",
+    "version": "0.7.0"
+  },
+  "paths": {
+    "/status": {
+      "get": {
+        "summary": "Return monitor, depth-callout, and recent-event status",
+        "responses": { "200": { "description": "Current alert status" } }
+      }
+    },
+    "/settings": {
+      "get": {
+        "summary": "Return the active monitor settings",
+        "responses": { "200": { "description": "Active settings" } }
+      },
+      "put": {
+        "summary": "Replace and persist monitor settings",
+        "security": [{ "signalk": ["readwrite"] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "type": "object" } }
+          }
+        },
+        "responses": {
+          "200": { "description": "Saved settings" },
+          "403": { "description": "Read/write access required" }
+        }
+      }
+    },
+    "/depth-callout/drop": {
+      "post": {
+        "summary": "Announce anchor drop and request the Traffic anchor profile",
+        "security": [{ "signalk": ["readwrite"] }],
+        "responses": {
+          "200": { "description": "Anchor drop recorded" },
+          "403": { "description": "Read/write access required" },
+          "409": { "description": "No recent depth available" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "signalk": { "type": "http", "scheme": "bearer" }
+    }
+  }
+}
