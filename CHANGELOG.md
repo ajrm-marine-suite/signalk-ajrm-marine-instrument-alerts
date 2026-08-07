@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.8
+
+- Refresh installation and broker-client documentation and remove obsolete
+  pre-release wording.
+
 ## 0.6.7
 
 - Add configurable Port/Starboard direction wording. The built-in XTE monitor

@@ -1,6 +1,6 @@
 # AJRM Marine Instrument Alerts
 
-## Version 1 baseline
+## Current release
 
 `v0.6.7` adds configurable Port/Starboard direction wording for signed
 instrument alerts. The built-in XTE monitor speaks the direction while using
@@ -115,17 +115,16 @@ Signal K stores temperatures in Kelvin, speed in metres per second, and angles i
 
 ## Install
 
-After the repository has been created and tagged:
-
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.7 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-instrument-alerts.git#v0.6.8 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
 Open **AJRM Marine Instrument Alerts** from the Signal K webapps page.
 
-Install and enable AJRM Marine Notifications before AJRM Marine Companion and AJRM Marine Audio.
+Install and enable AJRM Marine Notifications before AJRM Marine Audio and any
+client that consumes the broker projections.
 
 ## Tests
 
